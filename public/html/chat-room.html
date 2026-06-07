@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Чат | ЖКХ Digital</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app chat-app">
+  <header class="chat-topbar">
+    <a class="chat-back" id="backLink" href="#">← Назад</a>
+    <div class="chat-topbar-center">
+      <h1 id="chatTitle">Чат</h1>
+      <p class="muted" id="chatSub" style="margin:0;font-size:13px"></p>
+    </div>
+    <button class="icon-btn" data-logout title="Выйти">🚪</button>
+  </header>
+
+  <main class="chat-main">
+    <div class="chat-thread" id="thread"></div>
+    <div class="chat-composer card">
+      <div id="editBar" class="chat-edit-bar" style="display:none">
+        <span>Редактирование сообщения</span>
+        <button type="button" class="btn small secondary" id="cancelEdit">Отмена</button>
+      </div>
+      <div class="chat-input-row">
+        <label class="chat-attach" title="Фото">📷
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden />
+        </label>
+        <textarea id="msgInput" rows="1" placeholder="Сообщение…" maxlength="4000"></textarea>
+        <button type="button" class="btn" id="sendBtn">Отправить</button>
+      </div>
+      <div class="muted" id="fileName" style="font-size:12px;margin-top:6px"></div>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="readersModal" style="display:none">
+  <div class="modal-box" style="max-width:420px">
+    <h3>Кто прочитал <span class="close" onclick="UI.closeModal('readersModal')">✖</span></h3>
+    <div id="readersBody" class="chat-readers-list"></div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+API.requireAuth();
+const user = API.getUser();
+const chatId = new URLSearchParams(location.search).get('chat');
+if (!chatId) { UI.toast('Не указан чат', 'error'); location.href = user?.role === 'admin' ? 'admin/chats.html' : 'chat.html'; }
+
+const backHref = user?.role === 'admin' ? 'admin/chats.html' : 'chat.html';
+document.getElementById('backLink').href = backHref;
+
+let messages = [], pollTimer = null, editingId = null;
+let selectedFile = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sendBtn').addEventListener('click', sendOrSave);
+  document.getElementById('cancelEdit').addEventListener('click', cancelEdit);
+  document.getElementById('fileInput').addEventListener('change', (e) => {
+    selectedFile = e.target.files[0] || null;
+    document.getElementById('fileName').textContent = selectedFile ? selectedFile.name : '';
+  });
+  document.getElementById('msgInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendOrSave(); }
+  });
+  loadOnce();
+  pollTimer = setInterval(loadMessagesSilent, 5000);
+});
+
+window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); });
+
+async function loadOnce() {
+  try {
+    const data = await API.get(`/chats/${chatId}/messages`);
+    document.getElementById('chatTitle').textContent = data.chat.title;
+    document.getElementById('chatSub').textContent = data.chat.description || 'Общение жителей';
+    messages = data.messages || [];
+    renderThread();
+  } catch (e) {
+    UI.toast(e.message, 'error');
+  }
+}
+
+async function loadMessagesSilent() {
+  try {
+    const data = await API.get(`/chats/${chatId}/messages`);
+    messages = data.messages || [];
+    renderThread();
+  } catch (_) {}
+}
+
+function renderThread() {
+  const el = document.getElementById('thread');
+  const uid = user?.id;
+  el.innerHTML = messages.map(m => {
+    const mine = m.user_id === uid;
+    const created = new Date(m.created_at).getTime();
+    const canEdit = mine && (Date.now() - created < 3600000);
+    const body = escapeHtml(m.body || '');
+    const img = m.image_url ? `<div class="chat-msg-img"><img src="${m.image_url}" alt="" loading="lazy"/></div>` : '';
+    const edited = m.edited_at ? `<span class="muted" style="font-size:11px"> · изменено</span>` : '';
+
+    let statusHtml = '';
+    if (mine) {
+      const rc = m.read_by_count || 0;
+      const done = rc > 0;
+      statusHtml = `<button type="button" class="chat-msg-status ${done ? 'done' : ''}" data-readers="${m.id}" title="Кто прочитал">${done ? '✓✓' : '✓'} <span class="muted">${rc}</span></button>`;
+    } else {
+      const seen = m.read_by_me;
+      statusHtml = `<span class="chat-msg-inbound-status" title="${seen ? 'Вы прочитали' : ''}">${seen ? '✓' : '○'}</span>`;
+    }
+
+    return `
+      <div class="chat-bubble ${mine ? 'mine' : 'theirs'}">
+        <div class="chat-bubble-meta">${escapeHtml(m.author_name || '')}${m.author_role === 'admin' ? ' <span class="pill blue" style="font-size:11px;padding:2px 8px">Админ</span>' : ''}</div>
+        ${img}
+        <div class="chat-bubble-text">${body || (img ? '' : '<span class="muted">(без текста)</span>')}${edited}</div>
+        <div class="chat-bubble-foot">
+          <span class="muted" style="font-size:11px">${formatTime(m.created_at)}</span>
+          <div class="chat-bubble-actions">
+            ${mine && canEdit ? `<button type="button" class="btn small secondary chat-edit-btn" data-edit="${m.id}">Изменить</button>` : ''}
+            ${statusHtml}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  el.querySelectorAll('.chat-edit-btn').forEach(b => b.addEventListener('click', () => startEdit(b.dataset.edit)));
+  el.querySelectorAll('.chat-msg-status').forEach(b => b.addEventListener('click', () => openReaders(b.dataset.readers)));
+  el.scrollTop = el.scrollHeight;
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function sendOrSave() {
+  const text = document.getElementById('msgInput').value.trim();
+  if (editingId) {
+    if (!text) { UI.toast('Введите текст', 'error'); return; }
+    const btn = document.getElementById('sendBtn');
+    UI.setLoading(btn, true);
+    try {
+      await API.put(`/chats/${chatId}/messages/${editingId}`, { body: text });
+      cancelEdit();
+      await loadOnce();
+    } catch (e) { UI.toast(e.message, 'error'); }
+    finally { UI.setLoading(btn, false); }
+    return;
+  }
+  if (!text && !selectedFile) { UI.toast('Текст или фото', 'error'); return; }
+  const btn = document.getElementById('sendBtn');
+  UI.setLoading(btn, true);
+  try {
+    const fd = new FormData();
+    fd.append('body', text);
+    if (selectedFile) fd.append('photo', selectedFile);
+    const token = API.getToken();
+    const res = await fetch('/api/v1/chats/' + encodeURIComponent(chatId) + '/messages', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Ошибка отправки');
+    document.getElementById('msgInput').value = '';
+    document.getElementById('fileInput').value = '';
+    selectedFile = null;
+    document.getElementById('fileName').textContent = '';
+    await loadOnce();
+  } catch (e) { UI.toast(e.message, 'error'); }
+  finally { UI.setLoading(btn, false); }
+}
+
+function startEdit(id) {
+  const m = messages.find(x => x.id === id);
+  if (!m) return;
+  editingId = id;
+  document.getElementById('msgInput').value = m.body || '';
+  document.getElementById('editBar').style.display = 'flex';
+  document.getElementById('sendBtn').textContent = 'Сохранить';
+  document.getElementById('fileInput').closest('label').style.display = 'none';
+}
+
+function cancelEdit() {
+  editingId = null;
+  document.getElementById('editBar').style.display = 'none';
+  document.getElementById('sendBtn').textContent = 'Отправить';
+  document.getElementById('fileInput').closest('label').style.display = '';
+}
+
+async function openReaders(messageId) {
+  try {
+    const rows = await API.get(`/chats/${chatId}/messages/${messageId}/readers`);
+    document.getElementById('readersBody').innerHTML = rows.length
+      ? rows.map(r => `<div class="chat-reader-row"><strong>${escapeHtml(r.full_name)}</strong><span class="muted">${formatTime(r.read_at)}</span></div>`).join('')
+      : '<p class="muted">Пока никто не открыл чат после этого сообщения</p>';
+    UI.openModal('readersModal');
+  } catch (e) { UI.toast(e.message, 'error'); }
+}
+</script>
+</body>
+</html>

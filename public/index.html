@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Управление домом онлайн для ОСИ и жильцов в Казахстане" />
+  <title>JKH Digital | Управление домом онлайн</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('jkh_theme'); // 'dark' | 'light' | null (system)
+        if (saved === 'dark' || saved === 'light') document.documentElement.setAttribute('data-theme', saved);
+        else document.documentElement.removeAttribute('data-theme');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    .landing {
+      --max: 1160px;
+      min-height: 100vh;
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .skip-link {
+      position: absolute;
+      left: 12px;
+      top: -44px;
+      background: var(--panel);
+      color: var(--text);
+      border: 2px solid var(--primary);
+      border-radius: 10px;
+      padding: 8px 12px;
+      z-index: 1000;
+    }
+    .skip-link:focus { top: 12px; }
+    .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; }
+    .nav {
+      display: block;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid var(--line);
+    }
+    body[data-theme='dark'] .nav {
+      background: rgba(16, 25, 42, 0.92);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 74px;
+      gap: 14px;
+    }
+    .brand { font-weight: 700; font-size: 24px; color: var(--primary); }
+    .menu { display: flex; gap: 14px; flex-wrap: wrap; }
+    .menu a {
+      color: var(--muted);
+      font-size: 15px;
+      display: inline-block;
+      padding: 0;
+      border-radius: 0;
+      gap: 0;
+      align-items: normal;
+    }
+    .menu a:focus-visible, .btn:focus-visible, .lang-switch button:focus-visible, summary:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--primary) 60%, #fff 40%);
+      outline-offset: 2px;
+    }
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
+    .theme-btn {
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 10px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .lang-switch { display: flex; gap: 8px; }
+    .lang-switch button {
+      height: 34px; border: 1px solid var(--line); border-radius: 10px;
+      background: var(--panel); color: var(--text); padding: 0 10px; cursor: pointer;
+    }
+    .hero {
+      display: block;
+      margin-bottom: 0;
+      padding: 64px 0 34px;
+    }
+    .mobile-nav {
+      display: none;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .mobile-nav a {
+      border: 1px solid var(--line);
+      background: var(--chip-bg);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: var(--text);
+      display: inline-block;
+    }
+    .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 22px; align-items: center; }
+    .hero h1 { margin: 0 0 16px; font-size: clamp(32px, 4.4vw, 52px); line-height: 1.12; letter-spacing: .2px; }
+    .hero p { margin: 0 0 22px; color: var(--muted); font-size: clamp(16px, 2vw, 20px); max-width: 680px; }
+    .cta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .cta .btn { min-width: 160px; justify-content: center; display: inline-flex; align-items: center; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .chip {
+      border: 1px solid var(--line); background: var(--chip-bg); border-radius: 999px;
+      padding: 8px 12px; font-size: 13px;
+    }
+    .hero-card {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 18px;
+    }
+    .hero-card img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+    .stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 10px; }
+    .stat { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--chip-bg); }
+    .stat strong { display: block; font-size: 22px; margin-bottom: 4px; }
+    section { padding: 40px 0; }
+    .title { margin: 0 0 8px; font-size: clamp(26px, 3.3vw, 38px); line-height: 1.2; }
+    .subtitle { margin: 0 0 20px; color: var(--muted); font-size: 17px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .card h3, .card h4 { margin-top: 0; }
+    .list { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+    .step {
+      border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 88%, #5a92ff 12%), var(--panel));
+    }
+    .mock-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+    .mock {
+      min-height: 180px; border-radius: 14px; border: 1px solid var(--line);
+      background: radial-gradient(circle at top right, color-mix(in srgb, var(--panel) 82%, #7da8ff 18%), var(--panel));
+      padding: 14px; display: flex; flex-direction: column; justify-content: space-between;
+      box-shadow: var(--shadow);
+      transition: transform .2s ease, border-color .2s ease;
+    }
+    .mock:hover {
+      transform: translateY(-3px);
+      border-color: color-mix(in srgb, var(--primary) 45%, var(--line) 55%);
+    }
+    .mock strong {
+      font-size: 22px;
+      line-height: 1.2;
+    }
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .photo-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .photo-card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      display: block;
+      background: linear-gradient(135deg, #1e3d70, #2e6ac4);
+    }
+    .photo-card p {
+      margin: 0;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .photo-card-fallback {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      padding: 14px;
+      text-align: center;
+      font-size: 14px;
+      color: #fff;
+      background: linear-gradient(135deg, #1e3d70, #2e6ac4);
+    }
+    .mock small { color: var(--muted); }
+    .feature-table { width: 100%; border-collapse: collapse; }
+    .feature-table th, .feature-table td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; }
+    .feature-table th { color: var(--muted); font-size: 13px; }
+    .feature-wrap { overflow-x: auto; }
+    .faq details {
+      border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--panel);
+      margin-bottom: 10px;
+    }
+    .contacts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+    footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 18px 0 24px; margin-top: 24px; }
+
+    @media (max-width: 980px) {
+      .hero-grid, .grid-2, .grid-3, .steps, .mock-grid, .contacts, .photo-grid { grid-template-columns: 1fr; }
+      .hero { padding-top: 34px; }
+      .hero h1 { font-size: 34px; }
+      .menu { display: none; }
+      .mobile-nav { display: flex; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Перейти к основному содержимому</a>
+  <div class="landing">
+    <header class="nav" role="banner">
+      <div class="wrap nav-inner">
+        <div class="brand" aria-label="Логотип сервиса">JKH Digital</div>
+        <nav class="menu" aria-label="Основная навигация">
+          <a href="#features" data-i18n="navFeatures">Возможности</a>
+          <a href="#how" data-i18n="navHow">Как работает</a>
+          <a href="#audience" data-i18n="navAudience">Для кого</a>
+          <a href="#faq" data-i18n="navFaq">FAQ</a>
+          <a href="#contacts" data-i18n="navContacts">Контакты</a>
+        </nav>
+        <div class="nav-actions">
+          <button id="themeCycleBtn" class="theme-btn" type="button" aria-label="Тема: системная">AUTO</button>
+          <div class="lang-switch" aria-label="Выбор языка (UI)">
+            <button class="lang active" data-lang="ru">RU</button>
+            <button class="lang" data-lang="kz">KZ</button>
+            <button class="lang" data-lang="en">EN</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div>
+            <nav class="mobile-nav" aria-label="Быстрая навигация для мобильных">
+              <a href="#features" data-i18n="navFeatures">Возможности</a>
+              <a href="#how" data-i18n="navHow">Как работает</a>
+              <a href="#audience" data-i18n="navAudience">Для кого</a>
+              <a href="#faq" data-i18n="navFaq">FAQ</a>
+              <a href="#contacts" data-i18n="navContacts">Контакты</a>
+            </nav>
+            <h1 data-i18n="heroTitle">Управление домом онлайн для ОСИ и жильцов</h1>
+            <p data-i18n="heroSubtitle">Оплата коммунальных услуг, заявки, голосования и уведомления в одном приложении. Экономьте время и управляйте домом прозрачно.</p>
+            <div class="cta">
+              <a class="btn" data-i18n="loginBtn" href="/html/login.html">Войти</a>
+              <a class="btn secondary" data-i18n="registerBtn" href="/html/login.html#register">Зарегистрироваться</a>
+              <a class="btn secondary" data-i18n="connectHouseBtn" href="#contacts">Подключить дом</a>
+            </div>
+            <div class="chip-row">
+              <span class="chip" data-i18n="chipKazakhstan">🇰🇿 Поддержка Казахстана и ОСИ</span>
+              <span class="chip" data-i18n="chipPayments">💳 Kaspi и онлайн-платежи</span>
+              <span class="chip" data-i18n="chipNotifications">🔔 Push и WhatsApp уведомления</span>
+            </div>
+          </div>
+          <aside class="hero-card">
+            <img src="https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=1200&q=80" alt="Семья обсуждает управление домом в цифровом сервисе" loading="lazy" />
+            <h3 style="margin:0" data-i18n="trustTitle">Почему доверяют JKH Digital</h3>
+            <p class="subtitle" style="margin-top:8px" data-i18n="trustSubtitle">Понятный сервис для жильцов и удобный инструмент для ОСИ.</p>
+            <div class="stats">
+              <div class="stat"><strong>10 min</strong><small data-i18n="launchTime">на запуск дома</small></div>
+              <div class="stat"><strong>24/7</strong><small data-i18n="phoneAccess">доступ с телефона</small></div>
+              <div class="stat"><strong>100%</strong><small data-i18n="historyOps">история операций</small></div>
+              <div class="stat"><strong>RU/KZ</strong><small data-i18n="languageSupport">языковая поддержка</small></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="problems">
+        <div class="wrap">
+          <h2 class="title" data-i18n="problemsTitle">Какие проблемы решает сервис</h2>
+          <p class="subtitle" data-i18n="problemsSubtitle">Жильцы получают удобство, ОСИ — контроль и прозрачность.</p>
+          <div class="grid-2">
+            <article class="card">
+              <h3 data-i18n="forResidents">Для жильцов</h3>
+              <ul class="list">
+                <li data-i18n="residentFeature1">Оплата коммуналки онлайн</li>
+                <li data-i18n="residentFeature2">Заявка сантехнику за 1 минуту</li>
+                <li data-i18n="residentFeature3">Уведомления от ОСИ и УК</li>
+                <li data-i18n="residentFeature4">История платежей и начислений</li>
+                <li data-i18n="residentFeature5">Голосования по дому</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3 data-i18n="forOsi">Для ОСИ и УК</h3>
+              <ul class="list">
+                <li data-i18n="osiFeature1">Управление заявками по приоритетам</li>
+                <li data-i18n="osiFeature2">Сбор и контроль платежей</li>
+                <li data-i18n="osiFeature3">Массовые уведомления жильцам</li>
+                <li data-i18n="osiFeature4">Контроль задолженностей</li>
+                <li data-i18n="osiFeature5">Электронные документы и отчеты</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="how">
+        <div class="wrap">
+          <h2 class="title" data-i18n="howTitle">Как это работает</h2>
+          <p class="subtitle" data-i18n="howSubtitle">Запуск без сложного обучения, всё максимально просто.</p>
+          <div class="steps">
+            <div class="step"><strong data-i18n="step1">1. Зарегистрируйтесь</strong><p class="subtitle" data-i18n="step1Desc">Создайте аккаунт жильца или представителя ОСИ.</p></div>
+            <div class="step"><strong data-i18n="step2">2. Привяжите квартиру</strong><p class="subtitle" data-i18n="step2Desc">Подтвердите адрес и получите доступ к данным дома.</p></div>
+            <div class="step"><strong data-i18n="step3">3. Пользуйтесь сервисами</strong><p class="subtitle" data-i18n="step3Desc">Оплачивайте, подавайте заявки, голосуйте и следите за новостями.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screens">
+        <div class="wrap">
+          <h2 class="title" data-i18n="platformTitle">Интерфейс платформы</h2>
+          <p class="subtitle" data-i18n="platformSubtitle">Даже простые визуальные экраны повышают доверие пользователей.</p>
+          <div class="mock-grid">
+            <div class="mock"><strong data-i18n="mockTitle1">Экран заявок</strong><small data-i18n="mockDesc1">Статусы, исполнитель, сроки</small></div>
+            <div class="mock"><strong data-i18n="mockTitle2">Оплата услуг</strong><small data-i18n="mockDesc2">Kaspi/карта, история операций</small></div>
+            <div class="mock"><strong data-i18n="mockTitle3">Уведомления</strong><small data-i18n="mockDesc3">Важные новости и напоминания</small></div>
+            <div class="mock"><strong data-i18n="mockTitle4">Голосования</strong><small data-i18n="mockDesc4">Онлайн-решения жильцов</small></div>
+            <div class="mock"><strong data-i18n="mockTitle5">Документы</strong><small data-i18n="mockDesc5">Протоколы, отчеты, акты</small></div>
+            <div class="mock"><strong data-i18n="mockTitle6">Мобильная версия</strong><small data-i18n="mockDesc6">Управление домом в телефоне</small></div>
+          </div>
+          <div class="photo-grid" aria-label="Фотографии использования сервиса">
+            <figure class="photo-card">
+              <img src="https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=1200&q=80" alt="Онлайн оплата коммунальных услуг на смартфоне" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+              <div class="photo-card-fallback">Скрин оплаты скоро здесь</div>
+              <p data-i18n="photoDesc1">Оплата коммунальных услуг онлайн за пару минут.</p>
+            </figure>
+            <figure class="photo-card">
+              <img src="https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=1200&q=80" alt="Житель создает заявку по ремонту в мобильном приложении" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+              <div class="photo-card-fallback">Скрин заявок скоро здесь</div>
+              <p data-i18n="photoDesc2">Заявки по дому: сантехника, лифт, уборка, электрика.</p>
+            </figure>
+            <figure class="photo-card">
+              <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80" alt="Управляющая компания анализирует дашборд платежей и уведомлений" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+              <div class="photo-card-fallback">Скрин аналитики скоро здесь</div>
+              <p data-i18n="photoDesc3">ОСИ и УК видят прозрачную аналитику и статус дома.</p>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section id="features">
+        <div class="wrap">
+          <h2 class="title" data-i18n="featuresTitle">Возможности платформы</h2>
+          <div class="card feature-wrap">
+            <table class="feature-table">
+              <thead><tr><th data-i18n="featureColumn1">Функция</th><th data-i18n="featureColumn2">Описание</th></tr></thead>
+              <tbody>
+                <tr><td data-i18n="featureName1">Заявки</td><td data-i18n="featureDesc1">Сантехник, лифт, уборка и контроль статусов</td></tr>
+                <tr><td data-i18n="featureName2">Платежи</td><td data-i18n="featureDesc2">Коммунальные услуги онлайн, включая Kaspi</td></tr>
+                <tr><td data-i18n="featureName3">Голосования</td><td data-i18n="featureDesc3">Прозрачные решения жителей по дому</td></tr>
+                <tr><td data-i18n="featureName4">Уведомления</td><td data-i18n="featureDesc4">Новости дома через push и WhatsApp</td></tr>
+                <tr><td data-i18n="featureName5">Документы</td><td data-i18n="featureDesc5">Протоколы, отчеты и важные файлы ОСИ</td></tr>
+                <tr><td data-i18n="featureName6">Чат</td><td data-i18n="featureDesc6">Коммуникация жильцов и управляющей команды</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="audience">
+        <div class="wrap">
+          <h2 class="title" data-i18n="audienceTitle">Для кого сервис</h2>
+          <div class="grid-3">
+            <div class="card" data-i18n="audience1">ОСИ</div>
+            <div class="card" data-i18n="audience2">ЖК и новостройки</div>
+            <div class="card" data-i18n="audience3">Управляющие компании</div>
+            <div class="card" data-i18n="audience4">Жильцы</div>
+            <div class="card" data-i18n="audience5">ТСЖ и кооперативы</div>
+            <div class="card" data-i18n="audience6">Сервисные подрядчики</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2 class="title" data-i18n="kazakhstanTitle">Преимущества для Казахстана</h2>
+          <div class="grid-3">
+            <div class="card" data-i18n="kzAdvantage1">🇰🇿 Локальная поддержка ОСИ</div>
+            <div class="card" data-i18n="kzAdvantage2">📱 Удобно с телефона</div>
+            <div class="card" data-i18n="kzAdvantage3">🔒 Безопасное хранение данных</div>
+            <div class="card" data-i18n="kzAdvantage4">💳 Онлайн-оплата и Kaspi QR</div>
+            <div class="card" data-i18n="kzAdvantage5">🔔 Push и WhatsApp уведомления</div>
+            <div class="card" data-i18n="kzAdvantage6">🌐 Русский и қазақша интерфейс</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap grid-2">
+          <article class="card">
+            <h3 data-i18n="pricingTitle">Тарифы</h3>
+            <p class="subtitle" data-i18n="pricingSubtitle">Прозрачный подход для жителей и ОСИ.</p>
+            <p><strong data-i18n="pricingFree">Бесплатно для жильцов</strong></p>
+            <p class="subtitle" data-i18n="pricingDesc">Для ОСИ и УК тариф зависит от количества квартир. Подключение дома — по заявке.</p>
+            <a class="btn" href="#contacts" data-i18n="pricingBtn">Узнать тариф ОСИ</a>
+          </article>
+          <article class="card">
+            <h3 data-i18n="reviewsTitle">Отзывы</h3>
+            <p class="subtitle" data-i18n="review1">"Сервис сократил звонки в ОСИ и ускорил оплату." — Председатель ОСИ, Алматы</p>
+            <p class="subtitle" data-i18n="review2">"Заявки и уведомления стали понятными для всех жителей." — УК, Астана</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="faq" class="faq">
+        <div class="wrap">
+          <h2 class="title" data-i18n="faqTitle">FAQ</h2>
+          <details><summary data-i18n="faqQuestion1">Как подключить дом?</summary><p data-i18n="faqAnswer1">Оставьте заявку, мы свяжемся с ОСИ/УК и запустим дом поэтапно.</p></details>
+          <details><summary data-i18n="faqQuestion2">Кто видит мои данные?</summary><p data-i18n="faqAnswer2">Только авторизованные пользователи с правами доступа внутри вашего дома.</p></details>
+          <details><summary data-i18n="faqQuestion3">Можно ли оплачивать через Kaspi?</summary><p data-i18n="faqAnswer3">Да, поддерживается онлайн-оплата и сценарий Kaspi QR.</p></details>
+          <details><summary data-i18n="faqQuestion4">Как подтвердить квартиру?</summary><p data-i18n="faqAnswer4">После регистрации отправьте данные, подтверждение выполняет администратор дома.</p></details>
+          <details><summary data-i18n="faqQuestion5">Есть ли мобильная версия?</summary><p data-i18n="faqAnswer5">Да, интерфейс адаптирован для смартфонов и планшетов.</p></details>
+        </div>
+      </section>
+
+      <section id="contacts">
+        <div class="wrap contacts">
+          <article class="card card-bg-contacts">
+            <h3 data-i18n="contactsTitle">Контакты</h3>
+            <p class="subtitle" data-i18n="contactsSubtitle">Готовы подключить ваш дом и показать демо.</p>
+            <div class="contact-buttons">
+              <a class="btn secondary" href="https://wa.me/77785096615" target="_blank">📱 WhatsApp</a>
+              <a class="btn secondary" href="https://t.me/u_kolbaev" target="_blank">💬 Telegram</a>
+              <a class="btn secondary" href="mailto:ulan@jkhdigital.kz">📧 Email</a>
+              <a class="btn secondary" href="https://instagram.com/jkhdigital.kz" target="_blank">📸 Instagram</a>
+            </div>
+            <p data-i18n="contactsAddress">Адрес: Астана, Казахстан</p>
+          </article>
+          <article class="card card-bg-actions">
+            <h3 data-i18n="quickActions">Быстрые действия</h3>
+            <div class="cta">
+              <a class="btn" href="/html/login.html" data-i18n="loginBtn">Войти</a>
+              <a class="btn secondary" href="/html/login.html#register" data-i18n="registerBtn">Зарегистрироваться</a>
+              <a class="btn secondary" href="mailto:ulan@jkhdigital.kz" data-i18n="connectHouseBtn">Подключить дом</a>
+            </div>
+            <p class="subtitle" data-i18n="contactsBottomText">Инновационные решения для комфортной жизни в современном доме.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer role="contentinfo">
+      <div class="wrap" data-i18n="footerText">© 2026 JKH Digital • Платформа для ОСИ, УК и жильцов Казахстана</div>
+    </footer>
+  </div>
+  <script>
+    (function () {
+      var btn = document.getElementById('themeCycleBtn');
+      if (!btn) return;
+
+      var getSystem = function () {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      };
+
+      var getSaved = function () {
+        try { return localStorage.getItem('jkh_theme'); } catch (e) { return null; }
+      };
+
+      var apply = function () {
+        var saved = getSaved(); // 'dark' | 'light' | null
+        var mode = saved === 'dark' || saved === 'light' ? saved : 'system';
+        var effective = mode === 'system' ? getSystem() : mode;
+        document.body.setAttribute('data-theme', effective);
+        document.documentElement.setAttribute('data-theme', effective);
+
+        if (mode === 'system') {
+          btn.textContent = 'AUTO';
+          btn.title = 'Тема: системная';
+          btn.setAttribute('aria-label', 'Тема: системная');
+        } else if (mode === 'dark') {
+          btn.textContent = 'DARK';
+          btn.title = 'Тема: тёмная';
+          btn.setAttribute('aria-label', 'Тема: тёмная');
+        } else {
+          btn.textContent = 'LIGHT';
+          btn.title = 'Тема: светлая';
+          btn.setAttribute('aria-label', 'Тема: светлая');
+        }
+      };
+
+      var cycle = function () {
+        var saved = getSaved();
+        var next = saved === null ? 'dark' : (saved === 'dark' ? 'light' : null);
+        try {
+          if (next === null) localStorage.removeItem('jkh_theme');
+          else localStorage.setItem('jkh_theme', next);
+        } catch (e) {}
+        apply();
+      };
+
+      btn.addEventListener('click', cycle);
+      apply();
+
+      if (window.matchMedia) {
+        var mq = window.matchMedia('(prefers-color-scheme: dark)');
+        var onChange = function () { if (getSaved() === null) apply(); };
+        if (mq.addEventListener) mq.addEventListener('change', onChange);
+        else if (mq.addListener) mq.addListener(onChange);
+      }
+    })();
+  </script>
+  <script src="/js/i18n.js"></script>
+</body>
+</html>

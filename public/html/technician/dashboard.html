@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Панель техника | ЖКХ</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+  <style>
+    .task-card{border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:14px;background:var(--panel);box-shadow:var(--shadow)}
+    .task-card.urgent{border-left:4px solid var(--danger)}
+    .task-card.standard{border-left:4px solid var(--primary)}
+    .task-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+    .task-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:12px}
+    .task-actions{display:flex;gap:8px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Портал технического сотрудника</p></div>
+    <nav class="nav">
+      <a href="dashboard.html" class="active">🛠 Мои задачи</a>
+      <a href="history.html">📋 История</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <button class="mobile-menu-btn" onclick="UI.toggleMobileMenu()">☰</button>
+    <h2>Мои задачи</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>...</strong><br/><span class="muted">Технический сотрудник</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="mobile-menu-backdrop" onclick="UI.toggleMobileMenu()"></div>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+
+  <main class="main">
+    <!-- Summary -->
+    <div class="cards-3" style="margin-bottom:20px">
+      <div class="stat-card"><p>Новых задач</p><strong id="countNew" style="color:var(--danger)">—</strong></div>
+      <div class="stat-card"><p>В работе</p><strong id="countInProgress" style="color:#f2a63a">—</strong></div>
+      <div class="stat-card"><p>Выполнено сегодня</p><strong id="countDone" style="color:var(--success)">—</strong></div>
+    </div>
+
+    <!-- Filter -->
+    <div class="toolbar" style="margin-bottom:16px">
+      <select id="statusFilter">
+        <option value="active">Активные (новые + в работе)</option>
+        <option value="new">Только новые</option>
+        <option value="in_progress">Только в работе</option>
+        <option value="resolved">Выполненные</option>
+      </select>
+    </div>
+
+    <div id="taskList"><div class="muted" style="padding:20px">Загрузка...</div></div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<!-- Task detail modal -->
+<div class="modal" id="modalTask">
+  <div class="modal-box" style="max-width:540px">
+    <h3 id="taskTitle">Задача <span class="close" onclick="UI.closeModal('modalTask')">✖</span></h3>
+    <div id="taskDetail"></div>
+    <hr style="margin:16px 0;border:none;border-top:1px solid var(--line)"/>
+    <h4 style="margin-bottom:10px">Обновить статус</h4>
+    <div style="display:flex;gap:10px">
+      <select id="newStatus" style="flex:1">
+        <option value="in_progress">Принять в работу</option>
+        <option value="resolved">Отметить выполненным</option>
+      </select>
+      <button class="btn" id="updateStatusBtn" onclick="updateStatus()">Обновить</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('technician')) throw new Error('stop');
+
+let allTasks = [], currentTaskId = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('statusFilter').addEventListener('change', renderTasks);
+  await loadTasks();
+});
+
+async function loadTasks() {
+  try {
+    allTasks = await API.get('/requests?limit=100');
+    const me = API.getUser();
+    // Filter to only tasks assigned to this technician
+    allTasks = allTasks.filter(r => r.assigned_to === me.id || ['new','in_progress'].includes(r.status));
+
+    const today = new Date().toISOString().slice(0,10);
+    document.getElementById('countNew').textContent        = allTasks.filter(r=>r.status==='new').length;
+    document.getElementById('countInProgress').textContent = allTasks.filter(r=>r.status==='in_progress').length;
+    document.getElementById('countDone').textContent       = allTasks.filter(r=>r.status==='resolved' && r.resolved_at?.startsWith(today)).length;
+
+    renderTasks();
+  } catch(e) { UI.toast(e.message, 'error'); }
+}
+
+function renderTasks() {
+  const filter = document.getElementById('statusFilter').value;
+  let filtered;
+  if (filter === 'active') filtered = allTasks.filter(r => ['new','in_progress'].includes(r.status));
+  else filtered = allTasks.filter(r => r.status === filter);
+
+  // Sort: urgent first, then newest
+  filtered.sort((a,b) => {
+    if (a.priority !== b.priority) return a.priority==='urgent' ? -1 : 1;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  document.getElementById('taskList').innerHTML = filtered.length ? filtered.map(r => `
+    <div class="task-card ${r.priority}" onclick="openTask('${r.id}')" style="cursor:pointer">
+      <div class="task-header">
+        <div>
+          ${r.priority==='urgent' ? '<span class="pill orange" style="margin-bottom:6px;display:inline-block">🚨 Срочная</span>' : ''}
+          <h4 style="margin:0">${r.title}</h4>
+        </div>
+        ${UI.statusLabel(r.status)}
+      </div>
+      <div class="task-meta">
+        <span>📍 ${r.address || ''}, кв.${r.apartment||'—'}</span>
+        <span>👤 ${r.resident_name||'—'}</span>
+        <span>📅 ${UI.formatDate(r.created_at)}</span>
+      </div>
+      <p style="margin:0;color:var(--muted);font-size:14px">${r.description?.slice(0,100)||''}${(r.description?.length||0)>100?'...':''}</p>
+      <div class="task-actions" style="margin-top:12px" onclick="event.stopPropagation()">
+        ${r.status==='new' ? `<button class="btn small" onclick="quickStatus('${r.id}','in_progress')">▶ Принять в работу</button>` : ''}
+        ${r.status==='in_progress' ? `<button class="btn small" style="background:var(--success)" onclick="quickStatus('${r.id}','resolved')">✅ Выполнено</button>` : ''}
+        <button class="btn small" style="background:transparent;border:1px solid var(--line);color:var(--text)" onclick="openTask('${r.id}')">Подробнее</button>
+      </div>
+    </div>`).join('') : `<div class="card" style="text-align:center;padding:40px;color:var(--muted)">
+      <div style="font-size:48px;margin-bottom:12px">✅</div>
+      <p>Нет задач по выбранному фильтру</p>
+    </div>`;
+}
+
+async function openTask(id) {
+  try {
+    const r = await API.get(`/requests/${id}`);
+    currentTaskId = id;
+    document.getElementById('taskTitle').childNodes[0].textContent = r.title + ' ';
+    document.getElementById('taskDetail').innerHTML = `
+      <table>
+        <tr><td>Жилец</td><td>${r.resident_name||'—'}</td></tr>
+        <tr><td>Адрес</td><td>${r.address||''}, кв.${r.apartment||'—'}</td></tr>
+        <tr><td>Приоритет</td><td>${r.priority==='urgent'?'🚨 Срочная':'Обычная'}</td></tr>
+        <tr><td>Статус</td><td>${UI.statusLabel(r.status)}</td></tr>
+        <tr><td>Создана</td><td>${UI.formatDate(r.created_at)}</td></tr>
+      </table>
+      <div style="margin-top:12px"><strong>Описание:</strong><p style="color:var(--muted);margin-top:4px">${r.description}</p></div>
+      ${(r.photo_urls||[]).length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${r.photo_urls.map(u=>`<img src="${u}" style="width:100px;height:80px;object-fit:cover;border-radius:8px">`).join('')}</div>` : ''}`;
+    document.getElementById('newStatus').value = r.status==='new' ? 'in_progress' : 'resolved';
+    UI.openModal('modalTask');
+  } catch(e) { UI.toast(e.message, 'error'); }
+}
+
+async function quickStatus(id, status) {
+  try {
+    await API.put(`/requests/${id}/status`, { status });
+    UI.toast(status==='resolved' ? '✅ Отмечено выполненным' : '▶ Задача принята в работу');
+    await loadTasks();
+  } catch(e) { UI.toast(e.message, 'error'); }
+}
+
+async function updateStatus() {
+  const status = document.getElementById('newStatus').value;
+  const btn = document.getElementById('updateStatusBtn');
+  UI.setLoading(btn, true);
+  try {
+    await API.put(`/requests/${currentTaskId}/status`, { status });
+    UI.closeModal('modalTask');
+    UI.toast(status==='resolved' ? '✅ Задача выполнена!' : '▶ Статус обновлён');
+    await loadTasks();
+  } catch(e) { UI.toast(e.message, 'error'); }
+  finally { UI.setLoading(btn, false); }
+}
+</script>
+</body>
+</html>

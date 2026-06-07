@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Вход | ЖКХ Digital</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <style>
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  </style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-logo">🏢</div>
+  <h1>Цифровое ЖКХ</h1>
+  <p>Быстрая регистрация и удобный доступ по номеру телефона</p>
+  <div class="login-tab">
+    <button class="active" onclick="switchTab('login')">Войти</button>
+    <button onclick="switchTab('register')">Регистрация</button>
+  </div>
+  <div class="login-err" id="loginErr"></div>
+  <div class="login-ok" id="loginOk"></div>
+
+  <div id="loginForm">
+    <input type="text"     id="loginIdentity" placeholder="Телефон или Email" value="+77000000001"/>
+    <input type="password" id="loginPassword" placeholder="Пароль" value="password123"/>
+    <button class="btn" id="loginBtn" onclick="doLogin()">Войти</button>
+    <div style="margin-top:12px;font-size:13px;color:var(--muted);text-align:center">
+      Тест: admin@jkh.kz / petrov@jkh.kz / utility@jkh.kz (пароль: password123)
+    </div>
+  </div>
+
+  <div id="registerForm" style="display:none">
+    <div class="stepper">
+      <div class="step active" id="s1">1. Быстрая регистрация</div>
+      <div class="step" id="s2">2. Привязка квартиры</div>
+      <div class="step" id="s3">3. Подтверждение</div>
+    </div>
+
+    <div id="registerStep1">
+      <input type="tel"      id="regPhone"    placeholder="Телефон (основной логин), напр. +77011234567"/>
+      <div class="input-row">
+        <input type="text" id="regSms" placeholder="SMS-код (демо: 1234)"/>
+        <button class="btn btn-lite" id="smsBtn" onclick="sendSmsCode()" type="button">Получить код</button>
+      </div>
+      <input type="password" id="regPassword" placeholder="Пароль (мин. 6 символов)"/>
+      <input type="text"     id="regName"     placeholder="ФИО"/>
+      <input type="email"    id="regEmail"    placeholder="Email (необязательно)"/>
+      <button class="btn" id="regBtn" onclick="doRegister()">Продолжить</button>
+    </div>
+
+    <div id="registerStep2" style="display:none"></div>
+    <div id="registerStep3" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+  let currentRegStep = 1;
+  const setStep = (n) => {
+    currentRegStep = n;
+    document.getElementById('registerStep1').style.display = n===1 ? '' : 'none';
+    // Этап 2/3 выполняются в личном кабинете
+    document.getElementById('registerStep2').style.display = 'none';
+    document.getElementById('registerStep3').style.display = 'none';
+    ['s1','s2','s3'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.classList.toggle('active', i === 0);
+      el.classList.toggle('done', false);
+    });
+  };
+
+  function switchTab(tab) {
+    document.getElementById('loginForm').style.display    = tab==='login'    ? '' : 'none';
+    document.getElementById('registerForm').style.display = tab==='register' ? '' : 'none';
+    document.querySelectorAll('.login-tab button').forEach((b,i)=>
+      b.classList.toggle('active',(tab==='login'&&i===0)||(tab==='register'&&i===1)));
+    hideAlerts();
+    if (tab === 'register') setStep(1);
+  }
+  function hideAlerts() {
+    document.getElementById('loginErr').style.display='none';
+    document.getElementById('loginOk').style.display='none';
+  }
+  function showErr(msg){hideAlerts();const e=document.getElementById('loginErr');e.textContent=msg;e.style.display='block'}
+  function showOk(msg){hideAlerts();const e=document.getElementById('loginOk');e.textContent=msg;e.style.display='block'}
+
+  async function doLogin(){
+    const btn=document.getElementById('loginBtn');
+    btn.disabled=true;btn.textContent='⏳ Входим...';
+    try{
+      const identity = document.getElementById('loginIdentity').value.trim();
+      const r=await fetch('/api/v1/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({login: identity, password:document.getElementById('loginPassword').value})});
+      const d=await r.json();
+      if(!r.ok){showErr(d.error||'Ошибка');return}
+      localStorage.setItem('jkh_token',d.token);
+      localStorage.setItem('jkh_user',JSON.stringify(d.user));
+      redirectByRole(d.user);
+    }catch{showErr('Сервер недоступен')}
+    finally{btn.disabled=false;btn.textContent='Войти'}
+  }
+
+  async function sendSmsCode() {
+    const btn = document.getElementById('smsBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Отправка...';
+    try {
+      const r = await fetch('/api/v1/auth/send-sms-code', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ phone: document.getElementById('regPhone').value })
+      });
+      const d = await r.json();
+      if(!r.ok){showErr(d.error||'Ошибка отправки кода');return}
+      showOk(`SMS-код отправлен. Демо-код: ${d.demo_code}`);
+    } catch {
+      showErr('Сервер недоступен');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Получить код';
+    }
+  }
+
+  async function doRegister(){
+    const btn=document.getElementById('regBtn');
+    btn.disabled=true;btn.textContent='⏳ Создаем аккаунт...';
+    try{
+      const r=await fetch('/api/v1/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          full_name:document.getElementById('regName').value.trim(),
+          email:document.getElementById('regEmail').value.trim(),
+          phone:document.getElementById('regPhone').value.trim(),
+          sms_code:document.getElementById('regSms').value.trim(),
+          password:document.getElementById('regPassword').value
+        })});
+      const d=await r.json();
+      if(!r.ok){showErr(d.error||d.errors?.[0]?.msg||'Ошибка');return}
+      localStorage.setItem('jkh_token',d.token);
+      localStorage.setItem('jkh_user',JSON.stringify(d.user));
+      // Этап 2 выполняется уже в личном кабинете
+      window.location.href = '/html/index.html#bind';
+    }catch{showErr('Сервер недоступен')}
+    finally{btn.disabled=false;btn.textContent='Продолжить'}
+  }
+
+  function redirectByRole(user) {
+    const map = {
+      admin:            '/html/admin/dashboard.html',
+      technician:       '/html/technician/dashboard.html',
+      utility_provider: '/html/utility/dashboard.html',
+      resident:         '/html/index.html',
+    };
+    window.location.href = map[user.role] || '/html/index.html';
+  }
+
+  if(localStorage.getItem('jkh_token')) {
+    const u = JSON.parse(localStorage.getItem('jkh_user') || 'null');
+    if(u) redirectByRole(u);
+  }
+
+  if (window.location.hash === '#register') {
+    switchTab('register');
+  }
+</script>
+</body>
+</html>

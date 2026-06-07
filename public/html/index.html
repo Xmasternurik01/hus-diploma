@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Личный кабинет | ЖКХ</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <script src="../js/i18n.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>Цифровое управление услугами ЖКХ</h1><p>Digital Management Platform</p></div>
+    <nav class="nav">
+      <a href="index.html" class="active">🏠 <span data-i18n="nav_dashboard">Личный кабинет</span></a>
+      <a href="charges.html">🧾 <span data-i18n="nav_charges">Начисления</span></a>
+      <a href="meters.html">📟 <span data-i18n="nav_meters">Показания счетчиков</span></a>
+      <a href="payments.html">💳 <span data-i18n="nav_payments">Платежи</span></a>
+      <a href="requests.html">🛠 <span data-i18n="nav_requests">Заявки</span></a>
+      <a href="news.html">📢 <span data-i18n="nav_news">Новости</span></a>
+      <a href="chat.html">💬 <span data-i18n="nav_chats">Чаты</span></a>
+      <a href="profile.html">👤 <span data-i18n="nav_profile">Профиль</span></a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <button class="mobile-menu-btn" onclick="UI.toggleMobileMenu()">☰</button>
+    <h2 data-i18n="nav_dashboard">Личный кабинет</h2>
+    <div class="top-actions">
+      <div class="lang" id="langSelector" onclick="I18N.toggleLang()" style="cursor:pointer">RU | KZ | EN</div>
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>...</strong><br/><span class="muted">Житель</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="mobile-menu-backdrop" onclick="UI.toggleMobileMenu()"></div>
+
+  <div class="notification-panel" id="notificationPanel">
+    <div class="card">
+      <div class="notification-header">
+        <h4 data-i18n="notifications">Уведомления</h4>
+        <span style="cursor:pointer;color:var(--muted)" onclick="UI.openModal('modalSettings')">⚙️</span>
+      </div>
+      <div id="notifPanelList"><div class="muted" style="padding:12px" data-i18n="loading">Загрузка...</div></div>
+    </div>
+  </div>
+
+  <main class="main">
+    <div class="card" id="verifyBanner" style="display:none;margin-bottom:14px">
+      <div class="section-title"><h4>Требуется подтверждение</h4><span class="pill orange">Ограничения</span></div>
+      <div class="muted" id="verifyBannerText" style="line-height:1.45"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn" id="bindOpenBtn" type="button" onclick="UI.openModal('modalBindApt')">Привязать квартиру</button>
+      </div>
+    </div>
+    <div class="hero">
+      <div class="card welcome">
+        <h3 id="welcomeTitle" data-i18n="welcome">Добро пожаловать!</h3>
+        <p>Следите за начислениями, оплачивайте услуги и управляйте заявками.</p>
+        <div class="balance">
+          <span data-i18n="current_balance">Текущий баланс</span>
+          <div class="balance-right">
+            <strong id="balanceAmt">— ₸</strong>
+            <button class="plus-btn" onclick="UI.openModal('modalTopUp')">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title"><h4 data-i18n="quick_summary">Быстрая сводка</h4><span class="pill" id="summaryPeriod">—</span></div>
+        <table>
+          <tr><td data-i18n="to_pay">К оплате</td><td><strong id="sumUnpaid">—</strong></td></tr>
+          <tr><td data-i18n="due_date">Срок оплаты</td><td><strong id="sumDue">—</strong></td></tr>
+          <tr><td data-i18n="active_requests">Активные заявки</td><td><strong id="sumRequests">—</strong></td></tr>
+          <tr><td data-i18n="new_news">Новые новости</td><td><strong id="sumNews">—</strong></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="mini-grid">
+      <div class="mini-action" onclick="UI.openModal('modalMeters')"><span>📤</span><span data-i18n="submit_reading">Передать показания</span></div>
+      <div class="mini-action" onclick="window.location.href='requests.html'"><span>📝</span><span data-i18n="my_requests">Мои заявки</span></div>
+      <div class="mini-action" onclick="UI.openModal('modalPayment')"><span>💳</span><span data-i18n="pay_online">Оплатить онлайн</span></div>
+      <div class="mini-action" onclick="window.location.href='charges.html'"><span>🧾</span><span data-i18n="nav_charges">Начисления</span></div>
+    </div>
+
+    <div class="content-grid">
+      <div>
+        <div class="card">
+          <div class="section-title"><h4>Последние начисления</h4></div>
+          <table>
+            <thead><tr><th>Период</th><th>Услуга</th><th>Сумма</th><th>Статус</th></tr></thead>
+            <tbody id="recentBills"><tr><td colspan="4" class="muted" data-i18n="loading">Загрузка...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="section-title"><h4>Новости</h4><span class="pill">Новое</span></div>
+          <div id="recentNews"><div class="muted" data-i18n="loading">Загрузка...</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<!-- Top-up -->
+<div class="modal" id="modalTopUp">
+  <div class="modal-box pay-modal">
+    <h3 data-i18n="top_up">Пополнение счёта <span class="close" onclick="UI.closeModal('modalTopUp')">✖</span></h3>
+    <label class="pay-field-label" for="topupAmount" data-i18n="amount">Сумма</label>
+    <input type="number" id="topupAmount" placeholder="Мин. 50 ₸" min="50"/>
+    <div class="pay-card-fields" style="display:block;margin-top:4px">
+      <label class="pay-field-label" for="topupCardHolder" data-i18n="card_holder">Имя на карте (латиница, как на карте)</label>
+      <input type="text" id="topupCardHolder" class="pay-card-holder-input" placeholder="IVAN IVANOV" maxlength="26" autocomplete="cc-name" spellcheck="false"/>
+      <label class="pay-field-label" for="topupCard" data-i18n="card_number">Номер карты</label>
+      <input type="text" id="topupCard" placeholder="0000 0000 0000 0000" inputmode="numeric" maxlength="19" autocomplete="cc-number"/>
+      <div class="input-row">
+        <div>
+          <label class="pay-field-label" for="topupExpiry" data-i18n="expiry">Срок</label>
+          <input type="text" id="topupExpiry" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp"/>
+        </div>
+        <div>
+          <label class="pay-field-label" for="topupCvc" data-i18n="cvc">CVC</label>
+          <input type="text" id="topupCvc" placeholder="•••" maxlength="4" inputmode="numeric" autocomplete="cc-csc"/>
+        </div>
+      </div>
+    </div>
+    <button class="btn" id="topupBtn" onclick="doTopUp()" style="width:100%;margin-top:14px" data-i18n="top_up_btn">Пополнить</button>
+  </div>
+</div>
+
+<!-- Meter submit -->
+<div class="modal" id="modalMeters">
+  <div class="modal-box">
+    <h3 data-i18n="submit_meter">Передать показания <span class="close" onclick="UI.closeModal('modalMeters')">✖</span></h3>
+    <div id="mAptWrap" style="margin-bottom:12px"></div>
+    <div class="meter-group"><input type="number" id="mCold" placeholder="Холодная вода (м³)"/><label class="upload">📷<input type="file" accept="image/*" onchange="previewImg(event,'mImg1')"/></label></div>
+    <img id="mImg1" class="preview"/>
+    <div class="meter-group"><input type="number" id="mHot"  placeholder="Горячая вода (м³)"/><label class="upload">📷<input type="file" accept="image/*" onchange="previewImg(event,'mImg2')"/></label></div>
+    <img id="mImg2" class="preview"/>
+    <div class="meter-group"><input type="number" id="mElec" placeholder="Электроэнергия (кВт·ч)"/><label class="upload">📷<input type="file" accept="image/*" onchange="previewImg(event,'mImg3')"/></label></div>
+    <img id="mImg3" class="preview"/>
+    <div class="meter-group"><input type="number" id="mGas"  placeholder="Газ (м³)"/><label class="upload">📷<input type="file" accept="image/*" onchange="previewImg(event,'mImg4')"/></label></div>
+    <img id="mImg4" class="preview"/>
+    <button class="btn" id="meterBtn" onclick="submitMeters()" data-i18n="send">Отправить</button>
+  </div>
+</div>
+
+<!-- Pay -->
+<div class="modal" id="modalPayment">
+  <div class="modal-box pay-modal">
+    <h3 data-i18n="payment">Оплата <span class="close" onclick="UI.closeModal('modalPayment')">✖</span></h3>
+    <label class="pay-field-label" for="billSelect" data-i18n="select_bill">Счёт</label>
+    <select id="billSelect" class="pay-bill-select"><option value="">-- Выберите счёт --</option></select>
+    <div class="payment-summary" style="margin-top:8px"><span>К оплате:</span><strong id="payAmount">0 ₸</strong></div>
+    <label class="pay-field-label" for="payMethod" data-i18n="payment_method">Способ оплаты</label>
+    <select id="payMethod">
+      <option value="balance" data-i18n="balance_cabinet">Баланс кабинета</option>
+      <option value="card" data-i18n="bank_card">Банковская карта</option>
+    </select>
+    <div id="cardFields" class="pay-card-fields" style="display:none">
+      <label class="pay-field-label" for="payCardHolder" data-i18n="card_holder">Имя на карте (латиница, как на карте)</label>
+      <input type="text" id="payCardHolder" class="pay-card-holder-input" placeholder="IVAN IVANOV" maxlength="26" autocomplete="cc-name" spellcheck="false"/>
+      <label class="pay-field-label" for="payCard" data-i18n="card_number">Номер карты</label>
+      <input type="text" id="payCard" placeholder="0000 0000 0000 0000" inputmode="numeric" maxlength="19" autocomplete="cc-number"/>
+      <div class="input-row">
+        <div>
+          <label class="pay-field-label" for="payExpiry" data-i18n="expiry">Срок</label>
+          <input type="text" id="payExpiry" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp"/>
+        </div>
+        <div>
+          <label class="pay-field-label" for="payCvc" data-i18n="cvc">CVC</label>
+          <input type="text" id="payCvc" placeholder="•••" maxlength="4" inputmode="numeric" autocomplete="cc-csc"/>
+        </div>
+      </div>
+    </div>
+    <button class="btn" id="payBtn" onclick="doPay()" style="width:100%;margin-top:14px" data-i18n="pay_btn">Оплатить</button>
+  </div>
+</div>
+
+<!-- Notification settings -->
+<div class="modal" id="modalSettings">
+  <div class="modal-box">
+    <h3 data-i18n="notification_settings">Настройки уведомлений <span class="close" onclick="UI.closeModal('modalSettings')">✖</span></h3>
+    <div class="settings-group">
+      <h4 data-i18n="types">Типы</h4>
+      <div class="setting-item"><span>🚧 <span data-i18n="water_outage">Отключения воды</span></span><label class="switch"><input type="checkbox" id="setWater" checked/><span class="slider"></span></label></div>
+      <div class="setting-item"><span>📢 <span data-i18n="meetings">Собрания жильцов</span></span><label class="switch"><input type="checkbox" id="setMeeting" checked/><span class="slider"></span></label></div>
+      <div class="setting-item"><span>🛠 <span data-i18n="repairs">Ремонтные работы</span></span><label class="switch"><input type="checkbox" id="setRepair" checked/><span class="slider"></span></label></div>
+      <div class="setting-item"><span>💳 <span data-i18n="payments">Платежи</span></span><label class="switch"><input type="checkbox" id="setPayment" checked/><span class="slider"></span></label></div>
+      <div class="setting-item"><span>📟 <span data-i18n="meters">Показания счётчиков</span></span><label class="switch"><input type="checkbox" id="setMeters" checked/><span class="slider"></span></label></div>
+    </div>
+    <div class="settings-group">
+      <h4 data-i18n="method">Способ</h4>
+      <div class="setting-item"><span>🔊 <span data-i18n="sound">Звук</span></span><label class="switch"><input type="checkbox" id="setSound" checked/><span class="slider"></span></label></div>
+      <div class="setting-item"><span>📩 <span data-i18n="email">Email</span></span><label class="switch"><input type="checkbox" id="setEmail"/><span class="slider"></span></label></div>
+    </div>
+    <button class="btn" onclick="savePrefs()" data-i18n="save">Сохранить</button>
+  </div>
+</div>
+
+<!-- Bind apartment / registration step 2 -->
+<div class="modal" id="modalBindApt" style="display:none">
+  <div class="modal-box" style="max-width:520px">
+    <h3>Привязка квартиры <span class="close" onclick="UI.closeModal('modalBindApt')">✖</span></h3>
+    <p class="muted" style="margin:0 0 12px;line-height:1.45">
+      Заполните данные квартиры. Для арендатора нужен уже подтверждённый собственник. Для члена семьи запрос уйдёт собственнику.
+    </p>
+    <form id="bindForm" class="form-stack">
+      <select id="bindComplex" required>
+        <option value="">Выберите ЖК</option>
+        <option>ЖК Нурлы Тау</option>
+        <option>ЖК Коктем Residence</option>
+        <option>ЖК Green Park</option>
+        <option>Другое</option>
+      </select>
+      <div class="input-row">
+        <input type="text" id="bindEntrance" placeholder="Подъезд" required />
+        <input type="number" id="bindFloor" min="1" max="99" placeholder="Этаж" required />
+      </div>
+      <input type="text" id="bindApartment" placeholder="Квартира" required />
+      <input type="text" id="bindIin" maxlength="12" inputmode="numeric" placeholder="ИИН (12 цифр)" required />
+      <select id="bindStatus" required>
+        <option value="">Ваш статус в квартире</option>
+        <option value="owner">Собственник</option>
+        <option value="tenant">Арендатор</option>
+        <option value="family_member">Член семьи</option>
+      </select>
+      <button class="btn" id="bindSubmitBtn" type="submit">Отправить</button>
+    </form>
+  </div>
+</div>
+
+<script src="../js/billingLabels.js"></script>
+<script src="../js/api.js"></script>
+<script>
+const SVC = window.SERVICE_LABELS || { gas:'Газ', water:'Вода', electricity:'Электричество', heating:'Отопление' };
+let unpaidBills=[], userApts=[];
+
+document.addEventListener('DOMContentLoaded', async ()=>{
+  // Pay method toggle
+  document.getElementById('payMethod').addEventListener('change', () => {
+    UI.syncPayCardFields();
+  });
+  UI.bindCardHolderUppercase('payCardHolder');
+  UI.bindCardHolderUppercase('topupCardHolder');
+  UI.syncPayCardFields();
+  document.getElementById('billSelect').addEventListener('change', e=>{
+    const opt = e.target.selectedOptions[0];
+    document.getElementById('payAmount').textContent = opt.dataset.amount ? UI.formatMoney(opt.dataset.amount) : '0 ₸';
+  });
+
+  try {
+    const me = await API.get('/auth/me');
+    userApts = me.apartments || [];
+    document.getElementById('welcomeTitle').textContent = `Добро пожаловать, ${me.user.full_name.split(' ')[0]}!`;
+    document.getElementById('balanceAmt').textContent = UI.formatMoney(me.balance);
+
+    // Onboarding / restrictions until verification
+    const v = me.user.verification_status;
+    const banner = document.getElementById('verifyBanner');
+    const bannerText = document.getElementById('verifyBannerText');
+    const hasApt = userApts.length > 0;
+    if (!hasApt || v !== 'approved') {
+      banner.style.display = '';
+      if (!hasApt) {
+        bannerText.textContent = 'У вас нет привязанной квартиры. Заполните данные, чтобы отправить заявку на проверку.';
+      } else if (v === 'awaiting_owner') {
+        bannerText.textContent = 'Ожидается подтверждение собственника. Пока подтверждения нет, часть функций будет недоступна.';
+      } else if (v === 'pending') {
+        bannerText.textContent = 'Заявка отправлена. Ожидайте подтверждение администратора. Пока подтверждения нет, часть функций будет недоступна.';
+      } else if (v === 'rejected') {
+        bannerText.textContent = 'Заявка отклонена. Проверьте данные и отправьте заново.';
+      } else {
+        bannerText.textContent = 'Аккаунт не подтверждён. Завершите привязку и дождитесь проверки.';
+      }
+    }
+
+    document.getElementById('bindForm')?.addEventListener('submit', submitBind);
+    if (window.location.hash === '#bind') {
+      UI.openModal('modalBindApt');
+    }
+
+    // Apt select for meters
+    document.getElementById('mAptWrap').innerHTML = userApts.length
+      ? `<select id="mAptId">${userApts.map(a=>`<option value="${a.id}">${a.address}, кв.${a.apartment}</option>`).join('')}</select>`
+      : '<p class="muted">Нет привязанных квартир</p>';
+
+    const [bills, reqs, newsItems, notifs] = await Promise.all([
+      API.get('/billing?limit=5'),
+      API.get('/requests?limit=50'),
+      API.get('/news?limit=3'),
+      API.get('/notifications?limit=8'),
+    ]);
+
+    unpaidBills = bills.filter(b=>b.status!=='paid');
+    const now = new Date();
+    document.getElementById('summaryPeriod').textContent = now.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+    document.getElementById('sumUnpaid').textContent = UI.formatMoney(unpaidBills.reduce((s,b)=>s+b.amount,0));
+    document.getElementById('sumDue').textContent = bills[0]?.due_date ? UI.formatDate(bills[0].due_date) : '—';
+    document.getElementById('sumRequests').textContent = reqs.filter(r=>['new','in_progress'].includes(r.status)).length;
+    document.getElementById('sumNews').textContent = newsItems.length;
+
+    document.getElementById('recentBills').innerHTML = bills.slice(0,4).map(b=>`
+      <tr><td>${b.period}</td><td>${window.serviceLabel ? window.serviceLabel(b.service) : (SVC[b.service]||b.service)}</td><td><strong>${UI.formatMoney(b.amount)}</strong></td><td>${UI.statusLabel(b.status)}</td></tr>
+    `).join('') || '<tr><td colspan="4" class="muted">Нет данных</td></tr>';
+
+    document.getElementById('recentNews').innerHTML = newsItems.map(n=>`
+      <div class="news-item"><h5>${n.title}</h5><div class="muted">${UI.formatDate(n.created_at)}</div></div>
+    `).join('') || '<div class="muted">Нет новостей</div>';
+
+    document.getElementById('notifPanelList').innerHTML = notifs.length ? notifs.map(n=>`
+      <div class="notify-item notify-flex ${n.is_read?'':'new'}">
+        <div><h5>${n.title}</h5><div class="muted">${n.body}</div></div>
+        <button class="delete-btn" onclick="delNotif('${n.id}',this)">✖</button>
+      </div>`).join('') : '<div class="muted" style="padding:12px">Нет уведомлений</div>';
+
+    const billLbl = (s) => (window.serviceLabel ? window.serviceLabel(s) : SVC[s]) || s;
+    document.getElementById('billSelect').innerHTML =
+      `<option value="">-- Выберите --</option>` +
+      unpaidBills.map((b) => UI.billSelectOptionHtml(b, billLbl)).join('');
+
+    // Load prefs
+    const prefs = await API.get('/notifications/prefs').catch(()=>null);
+    if (prefs) {
+      document.getElementById('setWater').checked   = !!prefs.water_outage;
+      document.getElementById('setMeeting').checked = !!prefs.meetings;
+      document.getElementById('setRepair').checked  = !!prefs.repairs;
+      document.getElementById('setPayment').checked = !!prefs.payments;
+      document.getElementById('setMeters').checked  = !!prefs.meters;
+      document.getElementById('setSound').checked   = !!prefs.sound;
+      document.getElementById('setEmail').checked   = !!prefs.email;
+    }
+  } catch(e) { console.error(e); UI.toast('Ошибка загрузки данных','error'); }
+});
+
+async function submitBind(ev) {
+  ev.preventDefault();
+  const btn = document.getElementById('bindSubmitBtn');
+  UI.setLoading(btn, true);
+  try {
+    const payload = {
+      residential_complex: document.getElementById('bindComplex').value.trim(),
+      entrance: document.getElementById('bindEntrance').value.trim(),
+      floor: Number(document.getElementById('bindFloor').value),
+      apartment_number: document.getElementById('bindApartment').value.trim(),
+      iin: document.getElementById('bindIin').value.trim(),
+      resident_status: document.getElementById('bindStatus').value,
+    };
+    const d = await API.post('/auth/complete-registration', payload);
+    localStorage.setItem('jkh_user', JSON.stringify(d.user));
+    UI.toast(d.message || 'Отправлено');
+    UI.closeModal('modalBindApt');
+    window.location.hash = '';
+    window.location.reload();
+  } catch (e) {
+    UI.toast(e.message, 'error');
+  } finally {
+    UI.setLoading(btn, false);
+  }
+}
+
+async function doTopUp(){
+  const amount = parseFloat(document.getElementById('topupAmount').value);
+  if (!amount||amount<50){UI.toast('Минимум 50 ₸','error');return}
+  const h=(document.getElementById('topupCardHolder')?.value||'').trim();
+  if(h.length<2){UI.toast('Укажите имя на карте латиницей (заглавными)','error');return}
+  if(!document.getElementById('topupCard').value.trim()||!document.getElementById('topupExpiry').value.trim()||!document.getElementById('topupCvc').value.trim()){
+    UI.toast('Заполните данные карты','error');return;
+  }
+  const btn=document.getElementById('topupBtn');UI.setLoading(btn,true);
+  try{
+    const r=await API.post('/payments/topup',{
+      amount,
+      card_holder_name: document.getElementById('topupCardHolder').value,
+      card_number:document.getElementById('topupCard').value,
+      card_expiry:document.getElementById('topupExpiry').value,
+      card_cvc:document.getElementById('topupCvc').value
+    });
+    document.getElementById('balanceAmt').textContent=UI.formatMoney(r.new_balance);
+    UI.closeModal('modalTopUp');UI.toast(`Пополнено на ${UI.formatMoney(amount)}`);
+  }catch(e){UI.toast(e.message,'error')}
+  finally{UI.setLoading(btn,false)}
+}
+
+async function submitMeters(){
+  const aptId=document.getElementById('mAptId')?.value;
+  if(!aptId){UI.toast('Нет квартиры','error');return}
+  const types=[{id:'mCold',type:'cold_water',img:'mImg1'},{id:'mHot',type:'hot_water',img:'mImg2'},{id:'mElec',type:'electricity',img:'mImg3'},{id:'mGas',type:'gas',img:'mImg4'}];
+  const btn=document.getElementById('meterBtn');UI.setLoading(btn,true);
+  let sent=0;
+  for(const m of types){
+    const val=document.getElementById(m.id).value;if(!val)continue;
+    const form=new FormData();
+    form.append('apartment_id',aptId);form.append('meter_type',m.type);form.append('value',val);
+    const fi=document.getElementById(m.img).previousElementSibling?.querySelector('input[type=file]');
+    if(fi?.files[0])form.append('photo',fi.files[0]);
+    try{await API.upload('/meters',form);sent++}catch(e){UI.toast(`${m.type}: ${e.message}`,'error')}
+  }
+  UI.setLoading(btn,false);
+  if(sent){UI.closeModal('modalMeters');UI.toast(`Отправлено ${sent} показаний ✅`)}
+}
+
+async function doPay(){
+  const billId=document.getElementById('billSelect').value;
+  if(!billId){UI.toast('Выберите счёт','error');return}
+  const method=document.getElementById('payMethod').value;
+  if(method==='card'){
+    const h=(document.getElementById('payCardHolder')?.value||'').trim();
+    if(h.length<2){UI.toast('Укажите имя на карте латиницей (заглавными)','error');return}
+    if(!document.getElementById('payCard').value.trim()||!document.getElementById('payExpiry').value.trim()||!document.getElementById('payCvc').value.trim()){
+      UI.toast('Заполните номер карты, срок и CVC','error');return;
+    }
+  }
+  const btn=document.getElementById('payBtn');UI.setLoading(btn,true);
+  try{
+    const payload={bill_id:billId,method,card_number:document.getElementById('payCard').value,card_expiry:document.getElementById('payExpiry').value,card_cvc:document.getElementById('payCvc').value};
+    if(method==='card')payload.card_holder_name=document.getElementById('payCardHolder').value;
+    await API.post('/payments/pay',payload);
+    UI.closeModal('modalPayment');UI.toast('Оплата прошла успешно 💳');
+    setTimeout(()=>location.reload(),1200);
+  }catch(e){UI.toast(e.message,'error')}
+  finally{UI.setLoading(btn,false)}
+}
+
+async function delNotif(id,btn){
+  await API.delete(`/notifications/${id}`).catch(()=>{});
+  btn.closest('.notify-item').remove();
+  UI.renderNotifBadge();
+}
+
+async function savePrefs(){
+  try{
+    await API.put('/notifications/prefs',{
+      water_outage:document.getElementById('setWater').checked,meetings:document.getElementById('setMeeting').checked,
+      repairs:document.getElementById('setRepair').checked,payments:document.getElementById('setPayment').checked,
+      meters:document.getElementById('setMeters').checked,sound:document.getElementById('setSound').checked,
+      email:document.getElementById('setEmail').checked
+    });
+    UI.closeModal('modalSettings');UI.toast('Настройки сохранены ✅');
+  }catch(e){UI.toast(e.message,'error')}
+}
+
+function previewImg(event,id){const img=document.getElementById(id);const f=event.target.files[0];if(f){img.src=URL.createObjectURL(f);img.style.display='block'}}
+</script>
+</body>
+</html>

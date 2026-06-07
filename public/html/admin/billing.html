@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Счета | Администратор</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Панель администратора</p></div>
+    <nav class="nav">
+      <a href="dashboard.html">📊 Обзор</a>
+      <a href="requests.html">🛠 Заявки</a>
+      <a href="billing.html" class="active">🧾 Счета и начисления</a>
+      <a href="news.html">📢 Новости</a>
+      <a href="chats.html">💬 Чаты жителей</a>
+      <a href="users.html">👥 Пользователи</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <h2>Счета и начисления</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>Admin</strong><br/><span class="muted">Администратор</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+
+  <main class="main">
+    <!-- Generate bills -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title"><h3>Сгенерировать счета за период</h3></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label style="display:block;margin-bottom:6px;color:var(--muted);font-size:13px">Квартира</label>
+          <select id="genApt" style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;min-width:260px"><option value="">Загрузка...</option></select>
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:6px;color:var(--muted);font-size:13px">Период (ГГГГ-ММ)</label>
+          <input type="month" id="genPeriod" style="padding:10px 14px;border:1px solid var(--line);border-radius:10px"/>
+        </div>
+        <button class="btn" id="genBtn" onclick="generateBills()">Сгенерировать счета</button>
+      </div>
+      <div id="genResult" style="margin-top:14px"></div>
+    </div>
+
+    <!-- All bills table -->
+    <div class="card">
+      <div class="section-title"><h3>Все счета</h3></div>
+      <div class="toolbar">
+        <select id="billAptFilter"><option value="">Все квартиры</option></select>
+        <select id="billStatusFilter">
+          <option value="">Все статусы</option>
+          <option value="unpaid">Не оплачено</option>
+          <option value="paid">Оплачено</option>
+          <option value="overdue">Просрочено</option>
+        </select>
+        <select id="billPeriodFilter"><option value="">Все периоды</option></select>
+      </div>
+      <table>
+        <thead><tr><th>Квартира</th><th>Период</th><th>Услуга</th><th>Потребление</th><th>Сумма</th><th>Статус</th><th>Срок</th></tr></thead>
+        <tbody id="billsTable"><tr><td colspan="7" class="muted">Загрузка...</td></tr></tbody>
+      </table>
+      <div id="billsTotal" style="text-align:right;padding:12px 0;font-size:15px;color:var(--muted)"></div>
+    </div>
+
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<script src="../../js/billingLabels.js"></script>
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('admin')) throw new Error('stop');
+
+const SVC = window.SERVICE_LABELS || { gas:'Газ', water:'Вода', electricity:'Электричество', heating:'Отопление', maintenance: 'Эксплуатационные расходы' };
+let allBills = [], allApts = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  ['billAptFilter','billStatusFilter','billPeriodFilter'].forEach(id =>
+    document.getElementById(id).addEventListener('change', renderBills));
+
+  // Set default period to current month
+  const now = new Date();
+  document.getElementById('genPeriod').value =
+    `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  try {
+    // Load apartments
+    allApts = await API.get('/apartments').catch(() => []);
+
+    const aptSel = document.getElementById('genApt');
+    const aptFil = document.getElementById('billAptFilter');
+    allApts.forEach(a => {
+      [aptSel, aptFil].forEach(sel => {
+        const o = document.createElement('option');
+        o.value = a.id; o.textContent = `${a.address}, кв.${a.apartment}`;
+        sel.appendChild(o);
+      });
+    });
+    if (allApts.length) aptSel.value = allApts[0].id;
+
+    await loadBills();
+  } catch(e) { UI.toast(e.message, 'error'); }
+});
+
+async function loadBills() {
+  try {
+    allBills = await API.get('/admin/bills').catch(() => API.get('/billing?limit=200'));
+    // Populate period filter
+    const periods = [...new Set(allBills.map(b => b.period))].sort().reverse();
+    const pf = document.getElementById('billPeriodFilter');
+    pf.innerHTML = '<option value="">Все периоды</option>';
+    periods.forEach(p => { const o = document.createElement('option'); o.value=p; o.textContent=p; pf.appendChild(o); });
+    renderBills();
+  } catch(e) { UI.toast(e.message, 'error'); }
+}
+
+function renderBills() {
+  const apt    = document.getElementById('billAptFilter').value;
+  const status = document.getElementById('billStatusFilter').value;
+  const period = document.getElementById('billPeriodFilter').value;
+  const filtered = allBills.filter(b =>
+    (!apt    || b.apartment_id === apt) &&
+    (!status || b.status === status) &&
+    (!period || b.period === period)
+  );
+  const total = filtered.reduce((s,b)=>s+b.amount,0);
+  document.getElementById('billsTable').innerHTML = filtered.length ? filtered.map(b => {
+    const apt = allApts.find(a=>a.id===b.apartment_id);
+    return `<tr>
+      <td>${apt ? `кв.${apt.apartment}` : '—'}</td>
+      <td>${b.period}</td>
+      <td>${window.serviceLabel ? window.serviceLabel(b.service) : (SVC[b.service]||b.service)}</td>
+      <td>${b.consumption||'—'} ${b.unit||''}</td>
+      <td><strong>${UI.formatMoney(b.amount)}</strong></td>
+      <td>${UI.statusLabel(b.status)}</td>
+      <td>${UI.formatDate(b.due_date)}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" class="muted">Нет данных</td></tr>';
+  document.getElementById('billsTotal').textContent = filtered.length ? `Итого: ${UI.formatMoney(total)}` : '';
+}
+
+async function generateBills() {
+  const apartment_id = document.getElementById('genApt').value;
+  const period = document.getElementById('genPeriod').value;
+  if (!apartment_id || !period) { UI.toast('Выберите квартиру и период', 'error'); return; }
+
+  const btn = document.getElementById('genBtn');
+  UI.setLoading(btn, true);
+  try {
+    const res = await API.post('/billing/generate', { apartment_id, period });
+    const count = res.bills?.length || 0;
+    document.getElementById('genResult').innerHTML =
+      count ? `<div style="color:var(--success);font-size:14px">✅ Сгенерировано ${count} счетов за ${period}</div>`
+            : `<div style="color:var(--muted);font-size:14px">Нет данных по показаниям для генерации за ${period}</div>`;
+    UI.toast(`Счета за ${period} сгенерированы`);
+    await loadBills();
+  } catch(e) {
+    document.getElementById('genResult').innerHTML = `<div style="color:var(--danger);font-size:14px">❌ ${e.message}</div>`;
+  }
+  finally { UI.setLoading(btn, false); }
+}
+</script>
+</body>
+</html>

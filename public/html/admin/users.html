@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Пользователи | Администратор</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Панель администратора</p></div>
+    <nav class="nav">
+      <a href="dashboard.html">📊 Обзор</a>
+      <a href="requests.html">🛠 Заявки</a>
+      <a href="billing.html">🧾 Счета и начисления</a>
+      <a href="news.html">📢 Новости</a>
+      <a href="chats.html">💬 Чаты жителей</a>
+      <a href="users.html" class="active">👥 Пользователи</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <h2>Пользователи системы</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>Admin</strong><br/><span class="muted">Администратор</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+
+  <main class="main">
+    <div class="card">
+      <div class="section-title" style="flex-wrap:wrap;gap:10px;row-gap:12px">
+        <h3>Все пользователи</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto">
+          <button type="button" class="btn" id="addProviderBtn">+ Поставщик услуг</button>
+          <select id="roleFilter">
+            <option value="">Все роли</option>
+            <option value="resident">Жители</option>
+            <option value="admin">Администраторы</option>
+            <option value="technician">Технические сотрудники</option>
+            <option value="utility_provider">Поставщики услуг</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Имя</th><th>Email</th><th>Телефон</th><th>Роль</th><th>Регистрация</th></tr></thead>
+        <tbody id="usersTable"><tr><td colspan="5" class="muted">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<div class="modal" id="modalAddProvider" style="display:none">
+  <div class="modal-box" style="max-width:440px">
+    <h3>Новый поставщик услуг <span class="close" onclick="UI.closeModal('modalAddProvider')">✖</span></h3>
+    <p class="muted" style="margin:0 0 14px;font-size:14px">Создаётся учётная запись с ролью «Поставщик услуг». Поставщик сможет войти по email и паролю.</p>
+    <form id="addProviderForm" class="form-stack">
+      <input id="provName" type="text" placeholder="Название / ФИО" maxlength="120" required autocomplete="organization" />
+      <input id="provEmail" type="email" placeholder="Email (логин)" required autocomplete="email" />
+      <input id="provPhone" type="tel" placeholder="Телефон (необязательно)" autocomplete="tel" inputmode="tel" />
+      <input id="provPassword" type="password" placeholder="Пароль (мин. 8, буквы и цифры)" minlength="8" required autocomplete="new-password" />
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+        <button class="btn" type="submit" id="provSubmitBtn">Создать</button>
+        <button type="button" class="btn secondary" onclick="UI.closeModal('modalAddProvider')">Отмена</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('admin')) throw new Error('stop');
+
+const ROLES = {resident:'Житель',admin:'Администратор',technician:'Технический сотрудник',utility_provider:'Поставщик услуг'};
+const ROLE_COLORS = {resident:'',admin:'green',technician:'orange',utility_provider:'blue'};
+let allUsers = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('roleFilter').addEventListener('change', renderUsers);
+  document.getElementById('addProviderBtn').addEventListener('click', () => {
+    document.getElementById('addProviderForm').reset();
+    UI.openModal('modalAddProvider');
+  });
+  document.getElementById('addProviderForm').addEventListener('submit', submitNewProvider);
+  try {
+    allUsers = await API.get('/admin/users');
+    renderUsers();
+  } catch(e) { UI.toast(e.message, 'error'); }
+});
+
+async function submitNewProvider(ev) {
+  ev.preventDefault();
+  const full_name = document.getElementById('provName').value.trim();
+  const email = document.getElementById('provEmail').value.trim();
+  const phone = document.getElementById('provPhone').value.trim();
+  const password = document.getElementById('provPassword').value;
+  const btn = document.getElementById('provSubmitBtn');
+  UI.setLoading(btn, true);
+  try {
+    await API.post('/admin/users/utility-provider', {
+      full_name, email, password,
+      ...(phone ? { phone } : {}),
+    });
+    UI.toast('Поставщик услуг создан');
+    UI.closeModal('modalAddProvider');
+    allUsers = await API.get('/admin/users');
+    renderUsers();
+  } catch (e) {
+    UI.toast(e.message, 'error');
+  } finally {
+    UI.setLoading(btn, false);
+  }
+}
+
+function renderUsers() {
+  const role = document.getElementById('roleFilter').value;
+  const filtered = role ? allUsers.filter(u => u.role === role) : allUsers;
+  document.getElementById('usersTable').innerHTML = filtered.length ? filtered.map(u => `
+    <tr>
+      <td><strong>${u.full_name}</strong></td>
+      <td>${u.email}</td>
+      <td>${u.phone || '—'}</td>
+      <td><span class="pill ${ROLE_COLORS[u.role]||''}">${ROLES[u.role]||u.role}</span></td>
+      <td>${UI.formatDate(u.created_at)}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="muted">Нет пользователей</td></tr>';
+}
+</script>
+</body>
+</html>

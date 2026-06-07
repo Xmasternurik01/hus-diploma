@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Панель администратора | ЖКХ</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+  <style>
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+    .stat-box{background:var(--panel);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border-left:4px solid var(--primary)}
+    .stat-box.orange{border-color:#f2a63a}.stat-box.green{border-color:#20a36b}.stat-box.red{border-color:var(--danger)}
+    .stat-box p{margin:0 0 8px;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+    .stat-box strong{font-size:28px;color:var(--text)}
+    .quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+    .qa-card{background:var(--panel);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:.2s;text-align:center;border:1px solid var(--line)}
+    .qa-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+    .qa-card span{font-size:28px;display:block;margin-bottom:8px}
+    .qa-card p{margin:0;font-size:14px;color:var(--text);font-weight:500}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Панель администратора</p></div>
+    <nav class="nav">
+      <a href="dashboard.html" class="active">📊 Обзор</a>
+      <a href="requests.html">🛠 Заявки</a>
+      <a href="billing.html">🧾 Счета и начисления</a>
+      <a href="news.html">📢 Новости</a>
+      <a href="chats.html">💬 Чаты жителей</a>
+      <a href="users.html">👥 Пользователи</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <button class="mobile-menu-btn" onclick="UI.toggleMobileMenu()">☰</button>
+    <h2>Панель администратора</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>Admin</strong><br/><span class="muted">Администратор</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="mobile-menu-backdrop" onclick="UI.toggleMobileMenu()"></div>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+
+  <main class="main">
+    <!-- Stats -->
+    <div class="stat-grid">
+      <div class="stat-box"><p>Жителей</p><strong id="statResidents">—</strong></div>
+      <div class="stat-box orange"><p>Открытых заявок</p><strong id="statRequests">—</strong></div>
+      <div class="stat-box red"><p>Неоплаченных счетов</p><strong id="statUnpaid">—</strong></div>
+      <div class="stat-box green"><p>Доходы (всего)</p><strong id="statRevenue">—</strong></div>
+      <div class="stat-box orange"><p>Ожидают проверки (счётчики)</p><strong id="statMeters">—</strong></div>
+      <div class="stat-box"><p>Квартир</p><strong id="statApts">—</strong></div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="quick-actions">
+      <div class="qa-card" onclick="window.location.href='requests.html'"><span>🛠</span><p>Управление заявками</p></div>
+      <div class="qa-card" onclick="window.location.href='billing.html'"><span>🧾</span><p>Генерация счетов</p></div>
+      <div class="qa-card" onclick="window.location.href='news.html'"><span>📢</span><p>Публикация новостей</p></div>
+      <div class="qa-card" onclick="window.location.href='chats.html'"><span>💬</span><p>Чаты жителей</p></div>
+      <div class="qa-card" onclick="window.location.href='users.html'"><span>👥</span><p>Пользователи</p></div>
+    </div>
+
+    <!-- Recent requests -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title"><h4>Последние заявки</h4><a href="requests.html" style="color:var(--primary);font-size:13px">Все →</a></div>
+      <table>
+        <thead><tr><th>Тема</th><th>Жилец</th><th>Приоритет</th><th>Статус</th><th>Дата</th></tr></thead>
+        <tbody id="recentRequests"><tr><td colspan="5" class="muted">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Payment chart by month -->
+    <div class="card">
+      <div class="section-title"><h4>Доходы по месяцам</h4></div>
+      <div id="revenueTable"></div>
+    </div>
+
+    <div class="footer">© 2026 ЖКХ Digital — Администратор</div>
+  </main>
+</div>
+
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('admin')) throw new Error('stop');
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const [overview, reqs, revenue] = await Promise.all([
+      API.get('/reports/overview'),
+      API.get('/requests?limit=8'),
+      API.get('/reports/payments'),
+    ]);
+
+    document.getElementById('statResidents').textContent = overview.totalResidents;
+    document.getElementById('statRequests').textContent  = overview.openRequests;
+    document.getElementById('statUnpaid').textContent    = overview.unpaidBills;
+    document.getElementById('statRevenue').textContent   = UI.formatMoney(overview.totalRevenue);
+    document.getElementById('statMeters').textContent    = overview.pendingReadings;
+    document.getElementById('statApts').textContent      = overview.totalApartments;
+
+    document.getElementById('recentRequests').innerHTML = reqs.length ? reqs.map(r => `
+      <tr>
+        <td><strong>${r.title}</strong></td>
+        <td>${r.resident_name || '—'}</td>
+        <td>${r.priority === 'urgent' ? '<span class="pill orange">🚨 Срочная</span>' : '<span class="pill">Обычная</span>'}</td>
+        <td>${UI.statusLabel(r.status)}</td>
+        <td>${UI.formatDate(r.created_at)}</td>
+      </tr>`).join('') : '<tr><td colspan="5" class="muted">Нет данных</td></tr>';
+
+    document.getElementById('revenueTable').innerHTML = revenue.length ? `
+      <table>
+        <thead><tr><th>Месяц</th><th>Транзакций</th><th>Собрано</th></tr></thead>
+        <tbody>${revenue.slice(0,6).map(r => `
+          <tr><td>${r.month}</td><td>${r.count}</td><td><strong>${UI.formatMoney(r.collected)}</strong></td></tr>
+        `).join('')}</tbody>
+      </table>` : '<div class="muted">Нет данных</div>';
+  } catch(e) { UI.toast(e.message, 'error'); }
+});
+</script>
+</body>
+</html>

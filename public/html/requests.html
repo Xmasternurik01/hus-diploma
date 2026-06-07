@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Заявки | ЖКХ</title><link rel="stylesheet" href="../css/style.css"/></head>
+<body><div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>Цифровое управление услугами ЖКХ</h1></div>
+    <nav class="nav">
+      <a href="index.html">🏠 Личный кабинет</a>
+      <a href="charges.html">🧾 Начисления</a>
+      <a href="meters.html">📟 Показания счетчиков</a>
+      <a href="payments.html">💳 Платежи</a>
+      <a href="requests.html" class="active">🛠 Заявки</a>
+      <a href="news.html">📢 Новости</a>
+      <a href="chat.html">💬 Чаты</a>
+      <a href="profile.html">👤 Профиль</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+  <header class="topbar">
+    <h2>Заявки</h2>
+    <div class="top-actions">
+      <div class="lang">RU | KZ | EN</div>
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>...</strong><br/><span class="muted">Житель</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+<main class="main">
+  <div class="card">
+    <div class="section-title"><h3>Мои заявки</h3><button class="btn" onclick="UI.openModal('modalNewRequest')">+ Создать заявку</button></div>
+    <div class="toolbar">
+      <select id="statusFilter"><option value="">Все статусы</option><option value="new">Новые</option><option value="in_progress">В работе</option><option value="resolved">Выполненные</option></select>
+      <select id="priorityFilter"><option value="">Все приоритеты</option><option value="urgent">Срочные</option><option value="standard">Обычные</option></select>
+    </div>
+    <table><thead><tr><th>№</th><th>Тема</th><th>Дата</th><th>Исполнитель</th><th>Приоритет</th><th>Статус</th></tr></thead>
+    <tbody id="reqTable"><tr><td colspan="6" class="muted">Загрузка...</td></tr></tbody></table>
+  </div>
+  <div class="footer">© 2026 ЖКХ Digital</div>
+</main></div>
+
+<div class="modal" id="modalNewRequest">
+  <div class="modal-box"><h3>Новая заявка <span class="close" onclick="UI.closeModal('modalNewRequest')">✖</span></h3>
+    <select id="reqAptId" style="margin-bottom:12px"><option value="">-- Квартира --</option></select>
+    <input type="text" id="reqTitle" placeholder="Краткое описание проблемы"/>
+    <textarea id="reqDesc" placeholder="Подробное описание..." rows="4" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-family:inherit;resize:vertical;margin-bottom:12px"></textarea>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px"><input type="checkbox" id="reqEmergency"/> 🚨 Срочная заявка</label>
+    <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:13px">Фото (до 5 файлов)</label>
+    <input type="file" id="reqPhotos" accept="image/*" multiple style="margin-bottom:12px"/>
+    <button class="btn" id="submitReqBtn" onclick="submitReq()">Отправить</button>
+  </div>
+</div>
+<div class="modal" id="modalDetail">
+  <div class="modal-box"><h3 id="detailTitle">Заявка <span class="close" onclick="UI.closeModal('modalDetail')">✖</span></h3><div id="detailContent"></div></div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+let userApts=[];
+document.addEventListener('DOMContentLoaded',async()=>{
+  const me=await API.get('/auth/me').catch(()=>null);if(!me)return;
+  userApts=me.apartments||[];
+  const sel=document.getElementById('reqAptId');
+  userApts.forEach(a=>{const o=document.createElement('option');o.value=a.id;o.textContent=`${a.address}, кв.${a.apartment}`;sel.appendChild(o)});
+  if(userApts.length)sel.value=userApts[0].id;
+  await loadReqs();
+  document.getElementById('statusFilter').addEventListener('change',loadReqs);
+  document.getElementById('priorityFilter').addEventListener('change',loadReqs);
+});
+
+async function loadReqs(){
+  const s=document.getElementById('statusFilter').value,p=document.getElementById('priorityFilter').value;
+  let url='/requests?limit=30';if(s)url+=`&status=${s}`;if(p)url+=`&priority=${p}`;
+  try{
+    const reqs=await API.get(url);
+    document.getElementById('reqTable').innerHTML=reqs.length?reqs.map((r,i)=>`
+      <tr style="cursor:pointer" onclick="openDetail('${r.id}')">
+        <td>#${String(i+1).padStart(3,'0')}</td><td><strong>${r.title}</strong></td>
+        <td>${UI.formatDate(r.created_at)}</td><td>${r.technician_name||'—'}</td>
+        <td>${r.priority==='urgent'?'<span class="pill orange">🚨 Срочная</span>':'<span class="pill">Обычная</span>'}</td>
+        <td>${UI.statusLabel(r.status)}</td>
+      </tr>`).join(''):'<tr><td colspan="6" class="muted">Нет заявок</td></tr>';
+  }catch(e){UI.toast(e.message,'error')}
+}
+
+async function openDetail(id){
+  try{
+    const r=await API.get(`/requests/${id}`);
+    document.getElementById('detailTitle').childNodes[0].textContent=r.title+' ';
+    document.getElementById('detailContent').innerHTML=`
+      <table>
+        <tr><td>Статус</td><td>${UI.statusLabel(r.status)}</td></tr>
+        <tr><td>Приоритет</td><td>${r.priority==='urgent'?'🚨 Срочная':'Обычная'}</td></tr>
+        <tr><td>Дата подачи</td><td>${UI.formatDate(r.created_at)}</td></tr>
+        <tr><td>Исполнитель</td><td>${r.technician_name||'—'}</td></tr>
+        ${r.resolved_at?`<tr><td>Выполнено</td><td>${UI.formatDate(r.resolved_at)}</td></tr>`:''}
+      </table>
+      <div style="margin-top:16px"><strong>Описание:</strong><p style="color:var(--muted);margin-top:6px">${r.description}</p></div>
+      ${(r.photo_urls||[]).length?`<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${r.photo_urls.map(u=>`<img src="${u}" style="width:80px;height:80px;object-fit:cover;border-radius:8px">`).join('')}</div>`:''}`;
+    UI.openModal('modalDetail');
+  }catch(e){UI.toast(e.message,'error')}
+}
+
+async function submitReq(){
+  const aptId=document.getElementById('reqAptId').value;
+  const title=document.getElementById('reqTitle').value.trim();
+  const desc=document.getElementById('reqDesc').value.trim();
+  if(!aptId||!title||!desc){UI.toast('Заполните все поля','error');return}
+  const btn=document.getElementById('submitReqBtn');UI.setLoading(btn,true);
+  try{
+    const form=new FormData();
+    form.append('apartment_id',aptId);form.append('title',title);form.append('description',desc);
+    form.append('is_emergency',document.getElementById('reqEmergency').checked);
+    const files=document.getElementById('reqPhotos').files;
+    for(const f of files)form.append('photos',f);
+    await API.upload('/requests',form);
+    UI.closeModal('modalNewRequest');UI.toast('Заявка создана ✅');
+    document.getElementById('reqTitle').value='';document.getElementById('reqDesc').value='';
+    await loadReqs();
+  }catch(e){UI.toast(e.message,'error')}
+  finally{UI.setLoading(btn,false)}
+}
+</script>
+</body></html>

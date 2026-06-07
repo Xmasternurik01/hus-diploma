@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Управление профилем пользователя ЖКХ Digital" />
+  <meta name="theme-color" content="#0f67d8" />
+  <title>Профиль | ЖКХ Digital</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>Цифровое управление услугами ЖКХ</h1><p>Digital Management Platform</p></div>
+    <nav class="nav">
+      <a href="index.html">🏠 Личный кабинет</a>
+      <a href="charges.html">🧾 Начисления</a>
+      <a href="meters.html">📟 Показания счетчиков</a>
+      <a href="payments.html">💳 Платежи</a>
+      <a href="requests.html">🛠 Заявки</a>
+      <a href="news.html">📢 Новости</a>
+      <a href="chat.html">💬 Чаты</a>
+      <a href="profile.html" class="active">👤 Профиль</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <h2>Профиль</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>...</strong><br/><span class="muted">Житель</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="profile-grid">
+      <section class="card">
+        <div class="section-title"><h3>Основные данные</h3></div>
+        <form id="profileForm" class="form-stack">
+          <input id="fullName" type="text" placeholder="ФИО" autocomplete="name" minlength="2" maxlength="120" required />
+          <input id="email" type="email" placeholder="Email" autocomplete="email" required />
+          <input id="phone" type="tel" placeholder="Телефон" autocomplete="tel" inputmode="tel" />
+          <select id="language">
+            <option value="ru">Русский</option>
+            <option value="kz">Қазақша</option>
+            <option value="en">English</option>
+          </select>
+          <button class="btn" id="saveProfileBtn" type="submit">Сохранить изменения</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="section-title"><h3>Безопасность</h3></div>
+        <form id="passwordForm" class="form-stack">
+          <input id="currentPassword" type="password" placeholder="Текущий пароль" autocomplete="current-password" required />
+          <input id="newPassword" type="password" placeholder="Новый пароль (минимум 8, буквы и цифры)" autocomplete="new-password" minlength="8" required />
+          <input id="repeatPassword" type="password" placeholder="Повторите новый пароль" autocomplete="new-password" minlength="8" required />
+          <button class="btn" id="savePasswordBtn" type="submit">Изменить пароль</button>
+        </form>
+      </section>
+    </div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  let meData = null;
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadProfile();
+    bindForms();
+  });
+
+  async function loadProfile() {
+    try {
+      meData = await API.get('/auth/me');
+      const user = meData.user;
+      document.getElementById('fullName').value = user.full_name || '';
+      document.getElementById('email').value = user.email || '';
+      document.getElementById('phone').value = user.phone || '';
+      document.getElementById('language').value = user.language || 'ru';
+    } catch (e) {
+      UI.toast(e.message || 'Ошибка загрузки профиля', 'error');
+    }
+  }
+
+  function bindForms() {
+    document.getElementById('profileForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const btn = document.getElementById('saveProfileBtn');
+      UI.setLoading(btn, true);
+      try {
+        const payload = {
+          full_name: document.getElementById('fullName').value.trim(),
+          email: document.getElementById('email').value.trim().toLowerCase(),
+          phone: document.getElementById('phone').value.trim(),
+          language: document.getElementById('language').value
+        };
+        const user = await API.put('/auth/profile', payload);
+        API.saveSession(API.getToken(), user);
+        UI.renderSidebarUser();
+        UI.toast('Профиль обновлен');
+      } catch (e) {
+        UI.toast(e.message || 'Не удалось обновить профиль', 'error');
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
+
+    document.getElementById('passwordForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const repeatPassword = document.getElementById('repeatPassword').value;
+
+      if (newPassword !== repeatPassword) {
+        UI.toast('Новые пароли не совпадают', 'error');
+        return;
+      }
+      if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword) || newPassword.length < 8) {
+        UI.toast('Пароль должен содержать минимум 8 символов, буквы и цифры', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('savePasswordBtn');
+      UI.setLoading(btn, true);
+      try {
+        await API.put('/auth/password', {
+          current_password: currentPassword,
+          new_password: newPassword
+        });
+        document.getElementById('passwordForm').reset();
+        UI.toast('Пароль успешно изменен');
+      } catch (e) {
+        UI.toast(e.message || 'Не удалось изменить пароль', 'error');
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
+  }
+</script>
+</body>
+</html>

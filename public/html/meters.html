@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Показания | ЖКХ</title><link rel="stylesheet" href="../css/style.css"/></head>
+<body><div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>Цифровое управление услугами ЖКХ</h1></div>
+    <nav class="nav">
+      <a href="index.html">🏠 Личный кабинет</a>
+      <a href="charges.html">🧾 Начисления</a>
+      <a href="meters.html" class="active">📟 Показания счетчиков</a>
+      <a href="payments.html">💳 Платежи</a>
+      <a href="requests.html">🛠 Заявки</a>
+      <a href="news.html">📢 Новости</a>
+      <a href="chat.html">💬 Чаты</a>
+      <a href="profile.html">👤 Профиль</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+  <header class="topbar">
+    <h2>Показания счётчиков</h2>
+    <div class="top-actions">
+      <div class="lang">RU | KZ | EN</div>
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>...</strong><br/><span class="muted">Житель</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+<main class="main">
+  <div class="cards-3" id="latestCards" style="display:none">
+    <div class="stat-card"><p>💧 Холодная вода</p><strong id="latCold">—</strong><div class="muted" id="latColdD"></div></div>
+    <div class="stat-card"><p>🔥 Горячая вода</p><strong id="latHot">—</strong><div class="muted" id="latHotD"></div></div>
+    <div class="stat-card"><p>⚡ Электроэнергия</p><strong id="latElec">—</strong><div class="muted" id="latElecD"></div></div>
+    <div class="stat-card"><p>🔶 Газ</p><strong id="latGas">—</strong><div class="muted" id="latGasD"></div></div>
+  </div>
+  <div class="card">
+    <div class="section-title"><h3>История показаний</h3><button class="btn" onclick="UI.openModal('modalMeters')">📤 Передать показания</button></div>
+    <div class="toolbar">
+      <select id="aptFilter"><option value="">Загрузка...</option></select>
+      <select id="typeFilter"><option value="">Все типы</option><option value="cold_water">Холодная вода</option><option value="hot_water">Горячая вода</option><option value="electricity">Электроэнергия</option><option value="gas">Газ</option></select>
+    </div>
+    <table><thead><tr><th>Тип</th><th>Значение</th><th>Расход</th><th>Дата</th><th>Статус</th></tr></thead>
+    <tbody id="readingsTable"><tr><td colspan="5" class="muted">Загрузка...</td></tr></tbody></table>
+  </div>
+  <div class="footer">© 2026 ЖКХ Digital</div>
+</main></div>
+
+<div class="modal" id="modalMeters">
+  <div class="modal-box"><h3>Передать показания <span class="close" onclick="UI.closeModal('modalMeters')">✖</span></h3>
+    <select id="mAptId" style="margin-bottom:12px"><option value="">-- Квартира --</option></select>
+    <div class="meter-group"><input type="number" id="mCold" placeholder="Холодная вода (м³)"/><label class="upload">📷<input type="file" accept="image/*" onchange="previewImg(event,'mImg1')"/></label></div><img id="mImg1" class="preview"/>
+    <div class="meter-group"><input type="number" id="mHot"  placeholder="Горячая вода (м³)"/><label class="upload">📷<input type="file" accept="image/*" onchange="previewImg(event,'mImg2')"/></label></div><img id="mImg2" class="preview"/>
+    <div class="meter-group"><input type="number" id="mElec" placeholder="Электроэнергия (кВт·ч)"/><label class="upload">📷<input type="file" accept="image/*" onchange="previewImg(event,'mImg3')"/></label></div><img id="mImg3" class="preview"/>
+    <div class="meter-group"><input type="number" id="mGas"  placeholder="Газ (м³)"/><label class="upload">📷<input type="file" accept="image/*" onchange="previewImg(event,'mImg4')"/></label></div><img id="mImg4" class="preview"/>
+    <button class="btn" id="submitMeterBtn" onclick="submitMeters()">Отправить</button>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+const MN={cold_water:'💧 Холодная вода',hot_water:'🔥 Горячая вода',electricity:'⚡ Электроэнергия',gas:'🔶 Газ'};
+let userApts=[];
+
+document.addEventListener('DOMContentLoaded',async()=>{
+  const me=await API.get('/auth/me').catch(()=>null);if(!me)return;
+  userApts=me.apartments||[];
+  const aptSel=document.getElementById('aptFilter'),mSel=document.getElementById('mAptId');
+  if(!userApts.length){aptSel.innerHTML='<option>Нет квартир</option>';return}
+  userApts.forEach(a=>{
+    [aptSel,mSel].forEach(s=>{const o=document.createElement('option');o.value=a.id;o.textContent=`кв.${a.apartment}`;s.appendChild(o)});
+  });
+  aptSel.value=userApts[0].id;mSel.value=userApts[0].id;
+  aptSel.addEventListener('change',()=>{loadLatest(aptSel.value);loadReadings()});
+  document.getElementById('typeFilter').addEventListener('change',loadReadings);
+  await loadLatest(userApts[0].id);await loadReadings();
+});
+
+async function loadLatest(id){
+  try{
+    const l=await API.get(`/meters/latest?apartment_id=${id}`);
+    document.getElementById('latestCards').style.display='';
+    const map={cold_water:['latCold','latColdD'],hot_water:['latHot','latHotD'],electricity:['latElec','latElecD'],gas:['latGas','latGasD']};
+    for(const[t,[vi,di]]of Object.entries(map)){
+      document.getElementById(vi).textContent=l[t]?l[t].value:'—';
+      document.getElementById(di).textContent=l[t]?UI.formatDate(l[t].submitted_at):'';
+    }
+  }catch{}
+}
+
+async function loadReadings(){
+  const apt=document.getElementById('aptFilter').value,type=document.getElementById('typeFilter').value;
+  let url='/meters?limit=30';
+  if(apt)url+=`&apartment_id=${apt}`;if(type)url+=`&meter_type=${type}`;
+  try{
+    const r=await API.get(url);
+    document.getElementById('readingsTable').innerHTML=r.length?r.map(x=>`
+      <tr><td>${MN[x.meter_type]||x.meter_type}</td><td><strong>${x.value}</strong></td><td>${x.consumption??'—'}</td><td>${UI.formatDate(x.submitted_at)}</td><td>${UI.statusLabel(x.status)}</td></tr>
+    `).join(''):'<tr><td colspan="5" class="muted">Нет данных</td></tr>';
+  }catch(e){UI.toast(e.message,'error')}
+}
+
+async function submitMeters(){
+  const aptId=document.getElementById('mAptId').value;
+  if(!aptId){UI.toast('Выберите квартиру','error');return}
+  const types=[{id:'mCold',type:'cold_water',img:'mImg1'},{id:'mHot',type:'hot_water',img:'mImg2'},{id:'mElec',type:'electricity',img:'mImg3'},{id:'mGas',type:'gas',img:'mImg4'}];
+  const btn=document.getElementById('submitMeterBtn');UI.setLoading(btn,true);
+  let sent=0, errors=0;
+  for(const m of types){
+    const val=document.getElementById(m.id).value;
+    if(!val || val.trim()==='')continue;
+    const form=new FormData();form.append('apartment_id',aptId);form.append('meter_type',m.type);form.append('value',val);
+    const fi=document.getElementById(m.img).previousElementSibling?.querySelector('input[type=file]');
+    if(fi?.files[0])form.append('photo',fi.files[0]);
+    try{await API.upload('/meters',form);sent++}catch(e){UI.toast(`${MN[m.type]}: ${e.message}`,'error');errors++}
+  }
+  UI.setLoading(btn,false);
+  if(sent>0){UI.closeModal('modalMeters');UI.toast(`Отправлено ${sent} показаний ✅`);loadReadings();if(document.getElementById('aptFilter').value)loadLatest(document.getElementById('aptFilter').value)}
+  else if(errors===0){UI.toast('Введите хотя бы одно показание','error')}
+}
+
+function previewImg(e,id){const img=document.getElementById(id);const f=e.target.files[0];if(f){img.src=URL.createObjectURL(f);img.style.display='block'}}
+</script>
+</body></html>

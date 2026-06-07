@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>История проверок | Поставщик услуг</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Портал поставщика услуг</p></div>
+    <nav class="nav">
+      <a href="dashboard.html">⚠️ Флаговые показания</a>
+      <a href="history.html" class="active">✅ История проверок</a>
+      <a href="bills.html">📄 Создание счёта</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <button class="mobile-menu-btn" onclick="UI.toggleMobileMenu()">☰</button>
+    <h2>История проверок</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>...</strong><br/><span class="muted">Поставщик услуг</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="mobile-menu-backdrop" onclick="UI.toggleMobileMenu()"></div>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+
+  <main class="main">
+    <div class="card">
+      <div class="section-title">
+        <h3>Проверенные показания</h3>
+        <div class="toolbar" style="margin:0">
+          <select id="typeFilter">
+            <option value="">Все типы</option>
+            <option value="cold_water">Холодная вода</option>
+            <option value="hot_water">Горячая вода</option>
+            <option value="electricity">Электроэнергия</option>
+            <option value="gas">Газ</option>
+          </select>
+          <select id="statusFilter">
+            <option value="">Все результаты</option>
+            <option value="accepted">Одобренные</option>
+            <option value="rejected">Отклонённые</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Тип</th><th>Жилец</th><th>Значение</th><th>Потребление</th><th>Дата подачи</th><th>Дата проверки</th><th>Причина флага</th><th>Результат</th></tr></thead>
+        <tbody id="histTable"><tr><td colspan="8" class="muted">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('utility_provider', 'admin')) throw new Error('stop');
+
+const MN = {cold_water:'💧 Холодная вода',hot_water:'🔥 Горячая вода',electricity:'⚡ Электроэнергия',gas:'🔶 Газ'};
+const MU = {cold_water:'м³',hot_water:'м³',electricity:'кВт·ч',gas:'м³'};
+let allReadings = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  ['typeFilter','statusFilter'].forEach(id => document.getElementById(id).addEventListener('change', render));
+  try {
+    // Get all readings that were reviewed (accepted or rejected)
+    allReadings = await API.get('/meters?limit=200');
+    allReadings = allReadings.filter(r => ['accepted','rejected'].includes(r.status));
+    render();
+  } catch(e) { UI.toast(e.message, 'error'); }
+});
+
+function render() {
+  const type   = document.getElementById('typeFilter').value;
+  const status = document.getElementById('statusFilter').value;
+  const filtered = allReadings.filter(r =>
+    (!type   || r.meter_type === type) &&
+    (!status || r.status === status)
+  );
+  document.getElementById('histTable').innerHTML = filtered.length ? filtered.map(r => `
+    <tr>
+      <td>${MN[r.meter_type]||r.meter_type}</td>
+      <td>${r.submitted_by_name||'—'}</td>
+      <td>${r.value} ${MU[r.meter_type]||''}</td>
+      <td>${r.consumption ?? '—'} ${MU[r.meter_type]||''}</td>
+      <td>${UI.formatDate(r.submitted_at)}</td>
+      <td>${r.reviewed_at ? UI.formatDate(r.reviewed_at) : '—'}</td>
+      <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.flagged_reason||'—'}">${r.flagged_reason||'—'}</td>
+      <td>${UI.statusLabel(r.status)}</td>
+    </tr>`).join('') : '<tr><td colspan="8" class="muted">Нет данных</td></tr>';
+}
+</script>
+</body>
+</html>

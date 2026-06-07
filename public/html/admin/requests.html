@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Заявки | Администратор</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Панель администратора</p></div>
+    <nav class="nav">
+      <a href="dashboard.html">📊 Обзор</a>
+      <a href="requests.html" class="active">🛠 Заявки</a>
+      <a href="billing.html">🧾 Счета и начисления</a>
+      <a href="news.html">📢 Новости</a>
+      <a href="chats.html">💬 Чаты жителей</a>
+      <a href="users.html">👥 Пользователи</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <h2>Управление заявками</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>Admin</strong><br/><span class="muted">Администратор</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+
+  <main class="main">
+    <div class="card">
+      <div class="section-title"><h3>Все заявки</h3><span id="reqCount" class="pill">0</span></div>
+      <div class="toolbar">
+        <select id="statusFilter">
+          <option value="">Все статусы</option>
+          <option value="new">Новые</option>
+          <option value="in_progress">В работе</option>
+          <option value="resolved">Выполненные</option>
+          <option value="archived">Архив</option>
+        </select>
+        <select id="priorityFilter">
+          <option value="">Все приоритеты</option>
+          <option value="urgent">Срочные</option>
+          <option value="standard">Обычные</option>
+        </select>
+      </div>
+
+      <table>
+        <thead><tr><th>Тема</th><th>Жилец</th><th>Квартира</th><th>Приоритет</th><th>Исполнитель</th><th>Статус</th><th>Дата</th><th>Действия</th></tr></thead>
+        <tbody id="reqTable"><tr><td colspan="8" class="muted">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<!-- Request detail & assign modal -->
+<div class="modal" id="modalReq">
+  <div class="modal-box" style="max-width:560px">
+    <h3 id="reqModalTitle">Заявка <span class="close" onclick="UI.closeModal('modalReq')">✖</span></h3>
+    <div id="reqModalDetail"></div>
+    <hr style="margin:16px 0;border:none;border-top:1px solid var(--line)"/>
+
+    <h4 style="margin-bottom:10px">Назначить исполнителя</h4>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <select id="techSelect" style="flex:1"><option value="">-- Выберите технического сотрудника --</option></select>
+      <button class="btn" id="assignBtn" onclick="doAssign()">Назначить</button>
+    </div>
+
+    <h4 style="margin-bottom:10px">Обновить статус</h4>
+    <div style="display:flex;gap:10px">
+      <select id="statusSelect" style="flex:1">
+        <option value="in_progress">В работе</option>
+        <option value="resolved">Выполнено</option>
+        <option value="archived">Архивировать</option>
+        <option value="rejected">Отклонить</option>
+      </select>
+      <button class="btn" id="statusBtn" onclick="doStatus()">Обновить</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('admin')) throw new Error('stop');
+
+let allReqs = [], technicians = [], currentReqId = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('statusFilter').addEventListener('change', renderTable);
+  document.getElementById('priorityFilter').addEventListener('change', renderTable);
+
+  try {
+    // Load requests and technicians in parallel
+    [allReqs, technicians] = await Promise.all([
+      API.get('/requests?limit=100'),
+      API.get('/users?role=technician').catch(() => []),
+    ]);
+
+    // Fallback: get technicians from user list if endpoint not available
+    if (!technicians.length) {
+      technicians = await API.get('/users/technicians').catch(() => []);
+    }
+
+    // Populate tech select
+    const sel = document.getElementById('techSelect');
+    technicians.forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.id; o.textContent = t.full_name;
+      sel.appendChild(o);
+    });
+
+    renderTable();
+  } catch(e) { UI.toast(e.message, 'error'); }
+});
+
+function renderTable() {
+  const status   = document.getElementById('statusFilter').value;
+  const priority = document.getElementById('priorityFilter').value;
+  const filtered = allReqs.filter(r =>
+    (!status   || r.status === status) &&
+    (!priority || r.priority === priority)
+  );
+  document.getElementById('reqCount').textContent = filtered.length;
+  document.getElementById('reqTable').innerHTML = filtered.length ? filtered.map(r => `
+    <tr>
+      <td><strong>${r.title}</strong></td>
+      <td>${r.resident_name || '—'}</td>
+      <td>кв. ${r.apartment || '—'}</td>
+      <td>${r.priority === 'urgent' ? '<span class="pill orange">🚨 Срочная</span>' : '<span class="pill">Обычная</span>'}</td>
+      <td>${r.technician_name || '<span class="muted">Не назначен</span>'}</td>
+      <td>${UI.statusLabel(r.status)}</td>
+      <td>${UI.formatDate(r.created_at)}</td>
+      <td><button class="btn small" onclick="openReq('${r.id}')">Открыть</button></td>
+    </tr>`).join('') : '<tr><td colspan="8" class="muted">Нет заявок</td></tr>';
+}
+
+async function openReq(id) {
+  try {
+    const r = await API.get(`/requests/${id}`);
+    currentReqId = id;
+    document.getElementById('reqModalTitle').childNodes[0].textContent = r.title + ' ';
+    document.getElementById('reqModalDetail').innerHTML = `
+      <table>
+        <tr><td>Жилец</td><td>${r.resident_name || '—'}</td></tr>
+        <tr><td>Квартира</td><td>${r.address || ''}, кв. ${r.apartment || '—'}</td></tr>
+        <tr><td>Приоритет</td><td>${r.priority === 'urgent' ? '🚨 Срочная' : 'Обычная'}</td></tr>
+        <tr><td>Статус</td><td>${UI.statusLabel(r.status)}</td></tr>
+        <tr><td>Исполнитель</td><td>${r.technician_name || 'Не назначен'}</td></tr>
+        <tr><td>Создана</td><td>${UI.formatDate(r.created_at)}</td></tr>
+        ${r.resolved_at ? `<tr><td>Выполнена</td><td>${UI.formatDate(r.resolved_at)}</td></tr>` : ''}
+      </table>
+      <div style="margin-top:12px"><strong>Описание:</strong><p style="color:var(--muted);margin-top:4px">${r.description}</p></div>
+      ${(r.photo_urls||[]).length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${r.photo_urls.map(u=>`<img src="${u}" style="width:80px;height:80px;object-fit:cover;border-radius:8px">`).join('')}</div>` : ''}`;
+    document.getElementById('statusSelect').value = r.status === 'new' ? 'in_progress' : r.status;
+    UI.openModal('modalReq');
+  } catch(e) { UI.toast(e.message, 'error'); }
+}
+
+async function doAssign() {
+  const techId = document.getElementById('techSelect').value;
+  if (!techId) { UI.toast('Выберите исполнителя', 'error'); return; }
+  const btn = document.getElementById('assignBtn');
+  UI.setLoading(btn, true);
+  try {
+    await API.put(`/requests/${currentReqId}/assign`, { technician_id: techId });
+    UI.toast('Исполнитель назначен ✅');
+    allReqs = await API.get('/requests?limit=100');
+    renderTable();
+    UI.closeModal('modalReq');
+  } catch(e) { UI.toast(e.message, 'error'); }
+  finally { UI.setLoading(btn, false); }
+}
+
+async function doStatus() {
+  const status = document.getElementById('statusSelect').value;
+  const btn = document.getElementById('statusBtn');
+  UI.setLoading(btn, true);
+  try {
+    await API.put(`/requests/${currentReqId}/status`, { status });
+    UI.toast('Статус обновлён ✅');
+    allReqs = await API.get('/requests?limit=100');
+    renderTable();
+    UI.closeModal('modalReq');
+  } catch(e) { UI.toast(e.message, 'error'); }
+  finally { UI.setLoading(btn, false); }
+}
+</script>
+</body>
+</html>

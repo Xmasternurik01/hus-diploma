@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>История задач | Технический сотрудник</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Портал технического сотрудника</p></div>
+    <nav class="nav">
+      <a href="dashboard.html">🛠 Мои задачи</a>
+      <a href="history.html" class="active">📋 История</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <h2>История выполненных задач</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>...</strong><br/><span class="muted">Технический сотрудник</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+
+  <main class="main">
+    <div class="card">
+      <div class="section-title"><h3>Выполненные задачи</h3><span id="histCount" class="pill">0</span></div>
+      <table>
+        <thead><tr><th>Тема</th><th>Адрес</th><th>Приоритет</th><th>Создана</th><th>Выполнена</th></tr></thead>
+        <tbody id="histTable"><tr><td colspan="5" class="muted">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('technician')) throw new Error('stop');
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const tasks = await API.get('/requests?status=resolved&limit=100');
+    document.getElementById('histCount').textContent = tasks.length;
+    document.getElementById('histTable').innerHTML = tasks.length ? tasks.map(r => `
+      <tr>
+        <td><strong>${r.title}</strong></td>
+        <td>${r.address||''}, кв.${r.apartment||'—'}</td>
+        <td>${r.priority==='urgent'?'<span class="pill orange">🚨 Срочная</span>':'<span class="pill">Обычная</span>'}</td>
+        <td>${UI.formatDate(r.created_at)}</td>
+        <td><span class="status done">${UI.formatDate(r.resolved_at)}</span></td>
+      </tr>`).join('') : '<tr><td colspan="5" class="muted">Нет выполненных задач</td></tr>';
+  } catch(e) { UI.toast(e.message, 'error'); }
+});
+</script>
+</body>
+</html>

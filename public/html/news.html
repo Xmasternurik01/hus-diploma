@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Новости | ЖКХ</title><link rel="stylesheet" href="../css/style.css"/></head>
+<body><div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>Цифровое управление услугами ЖКХ</h1></div>
+    <nav class="nav">
+      <a href="index.html">🏠 Личный кабинет</a>
+      <a href="charges.html">🧾 Начисления</a>
+      <a href="meters.html">📟 Показания счетчиков</a>
+      <a href="payments.html">💳 Платежи</a>
+      <a href="requests.html">🛠 Заявки</a>
+      <a href="news.html" class="active">📢 Новости</a>
+      <a href="chat.html">💬 Чаты</a>
+      <a href="profile.html">👤 Профиль</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+  <header class="topbar">
+    <h2>Новости и объявления</h2>
+    <div class="top-actions">
+      <div class="lang">RU | KZ | EN</div>
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>...</strong><br/><span class="muted">Житель</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+<main class="main">
+  <div class="card">
+    <div class="section-title">
+      <h3>Новости</h3>
+      <div style="display:flex;gap:8px">
+        <input type="search" id="newsSearch" placeholder="Поиск..." style="padding:8px 14px;border:1px solid var(--line);border-radius:10px;font-size:14px"/>
+        <select id="catFilter"><option value="">Все</option><option value="outage">Отключения</option><option value="payment">Оплата</option><option value="repair">Ремонт</option><option value="meeting">Собрания</option><option value="general">Общее</option></select>
+      </div>
+    </div>
+    <div id="newsList"><div class="muted" style="padding:20px">Загрузка...</div></div>
+  </div>
+  <div class="footer">© 2026 ЖКХ Digital</div>
+</main></div>
+
+<div class="modal" id="modalNewsDetail">
+  <div class="modal-box">
+    <h3 id="newsTitle"> <span class="close" onclick="UI.closeModal('modalNewsDetail')">✖</span></h3>
+    <div id="newsBody" style="color:var(--muted);line-height:1.7;margin-bottom:12px"></div>
+    <div id="newsMeta" style="font-size:13px;color:var(--muted)"></div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+const CI={outage:'💧',payment:'💲',repair:'🛠',meeting:'📢',general:'📄'};
+const CL={outage:'Отключение',payment:'Оплата',repair:'Ремонт',meeting:'Собрание',general:'Общее'};
+let allNews=[];
+
+document.addEventListener('DOMContentLoaded',async()=>{
+  await loadNews();
+  let t;
+  document.getElementById('newsSearch').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(render,250)});
+  document.getElementById('catFilter').addEventListener('change',render);
+});
+
+async function loadNews(){
+  try{allNews=await API.get('/news?limit=50');render()}
+  catch(e){UI.toast(e.message,'error')}
+}
+
+function render(){
+  const q=document.getElementById('newsSearch').value.toLowerCase();
+  const cat=document.getElementById('catFilter').value;
+  const filtered=allNews.filter(n=>(!cat||n.category===cat)&&(!q||n.title.toLowerCase().includes(q)||n.body.toLowerCase().includes(q)));
+  document.getElementById('newsList').innerHTML=filtered.length?filtered.map(n=>`
+    <div class="news-card" onclick="openNews('${n.id}')">
+      <div class="news-left">${CI[n.category]||'📄'}</div>
+      <div class="news-content">
+        <h4>${n.title}</h4>
+        <p>${n.body.slice(0,120)}${n.body.length>120?'...':''}</p>
+        <span class="pill">${CL[n.category]||n.category}</span>
+        <div class="news-link">Подробнее...</div>
+      </div>
+      <div class="news-time">${ago(n.created_at)}</div>
+    </div>`).join(''):'<div class="muted" style="padding:20px">Ничего не найдено</div>';
+}
+
+function openNews(id){
+  const n=allNews.find(x=>x.id===id);if(!n)return;
+  document.getElementById('newsTitle').childNodes[0].textContent=n.title+' ';
+  document.getElementById('newsBody').textContent=n.body;
+  document.getElementById('newsMeta').textContent=`${CL[n.category]||''} · ${UI.formatDate(n.created_at)} · ${n.author_name||''}`;
+  UI.openModal('modalNewsDetail');
+}
+
+function ago(iso){
+  if(!iso)return'';
+  const h=Math.floor((Date.now()-new Date(iso).getTime())/36e5);
+  if(h<1)return'Только что';if(h<24)return`${h} ч. назад`;
+  const d=Math.floor(h/24);if(d===1)return'Вчера';return UI.formatDate(iso);
+}
+</script>
+</body></html>

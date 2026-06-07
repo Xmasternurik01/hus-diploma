@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Новости | Администратор</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+  <style>
+    textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-family:inherit;resize:vertical;min-height:120px;margin-bottom:12px;font-size:14px}
+    .news-admin-card{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+    .news-admin-card h4{margin:0 0 6px}
+    .news-admin-card p{color:var(--muted);font-size:13px;margin:0 0 10px}
+    .news-actions{display:flex;gap:8px;align-items:center}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Панель администратора</p></div>
+    <nav class="nav">
+      <a href="dashboard.html">📊 Обзор</a>
+      <a href="requests.html">🛠 Заявки</a>
+      <a href="billing.html">🧾 Счета и начисления</a>
+      <a href="news.html" class="active">📢 Новости</a>
+      <a href="chats.html">💬 Чаты жителей</a>
+      <a href="users.html">👥 Пользователи</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <h2>Управление новостями</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>Admin</strong><br/><span class="muted">Администратор</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+  <div class="notification-panel" id="notificationPanel"><div class="card"><div class="notification-header"><h4>Уведомления</h4></div></div></div>
+
+  <main class="main">
+    <!-- Create form -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title"><h3 id="formTitle">Создать новость</h3></div>
+      <input type="hidden" id="editingId"/>
+      <input type="text" id="newsTitle" placeholder="Заголовок новости"/>
+      <textarea id="newsBody" placeholder="Текст новости..."></textarea>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <select id="newsCat">
+          <option value="general">Общее</option>
+          <option value="outage">Отключения</option>
+          <option value="payment">Оплата</option>
+          <option value="repair">Ремонт</option>
+          <option value="meeting">Собрания</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="newsPublished" checked/>
+          <span>Опубликовать</span>
+        </label>
+        <button class="btn" id="saveBtn" onclick="saveNews()">Опубликовать</button>
+        <button class="btn" id="cancelBtn" onclick="cancelEdit()" style="display:none;background:var(--muted)">Отмена</button>
+      </div>
+    </div>
+
+    <!-- News list -->
+    <div class="card">
+      <div class="section-title"><h3>Все публикации</h3><span id="newsCount" class="pill">0</span></div>
+      <div id="newsList"><div class="muted" style="padding:20px">Загрузка...</div></div>
+    </div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('admin')) throw new Error('stop');
+
+const CAT = {general:'Общее',outage:'Отключения',payment:'Оплата',repair:'Ремонт',meeting:'Собрания'};
+const CAT_ICON = {general:'📄',outage:'💧',payment:'💲',repair:'🛠',meeting:'📢'};
+let allNews = [];
+
+document.addEventListener('DOMContentLoaded', loadNews);
+
+async function loadNews() {
+  try {
+    allNews = await API.get('/news?limit=100');
+    document.getElementById('newsCount').textContent = allNews.length;
+    document.getElementById('newsList').innerHTML = allNews.length ? allNews.map(n => `
+      <div class="news-admin-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <h4>${CAT_ICON[n.category]||'📄'} ${n.title}</h4>
+            <p>${n.body.slice(0,120)}${n.body.length>120?'...':''}</p>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="pill">${CAT[n.category]||n.category}</span>
+              <span class="muted" style="font-size:12px">${UI.formatDate(n.created_at)}</span>
+              ${n.published ? '<span class="status done">Опубликовано</span>' : '<span class="status new">Черновик</span>'}
+            </div>
+          </div>
+          <div class="news-actions">
+            <button class="btn small" onclick="editNews('${n.id}')">✏️ Ред.</button>
+            <button class="btn small" style="background:var(--danger)" onclick="deleteNews('${n.id}',this)">🗑 Удалить</button>
+          </div>
+        </div>
+      </div>`).join('') : '<div class="muted" style="padding:20px">Нет новостей</div>';
+  } catch(e) { UI.toast(e.message, 'error'); }
+}
+
+async function saveNews() {
+  const title     = document.getElementById('newsTitle').value.trim();
+  const body      = document.getElementById('newsBody').value.trim();
+  const category  = document.getElementById('newsCat').value;
+  const published = document.getElementById('newsPublished').checked;
+  const editingId = document.getElementById('editingId').value;
+
+  if (!title || !body) { UI.toast('Заполните заголовок и текст', 'error'); return; }
+  const btn = document.getElementById('saveBtn');
+  UI.setLoading(btn, true);
+  try {
+    if (editingId) {
+      await API.put(`/news/${editingId}`, { title, body, category, published });
+      UI.toast('Новость обновлена ✅');
+      cancelEdit();
+    } else {
+      await API.post('/news', { title, body, category, published });
+      UI.toast('Новость опубликована ✅');
+      document.getElementById('newsTitle').value = '';
+      document.getElementById('newsBody').value  = '';
+    }
+    await loadNews();
+  } catch(e) { UI.toast(e.message, 'error'); }
+  finally { UI.setLoading(btn, false); }
+}
+
+function editNews(id) {
+  const n = allNews.find(x => x.id === id);
+  if (!n) return;
+  document.getElementById('editingId').value      = n.id;
+  document.getElementById('newsTitle').value      = n.title;
+  document.getElementById('newsBody').value       = n.body;
+  document.getElementById('newsCat').value        = n.category;
+  document.getElementById('newsPublished').checked= !!n.published;
+  document.getElementById('formTitle').textContent = 'Редактировать новость';
+  document.getElementById('saveBtn').textContent   = 'Сохранить';
+  document.getElementById('cancelBtn').style.display = '';
+  document.querySelector('.main').scrollTo(0, 0);
+}
+
+function cancelEdit() {
+  document.getElementById('editingId').value = '';
+  document.getElementById('newsTitle').value = '';
+  document.getElementById('newsBody').value  = '';
+  document.getElementById('newsCat').value   = 'general';
+  document.getElementById('newsPublished').checked = true;
+  document.getElementById('formTitle').textContent = 'Создать новость';
+  document.getElementById('saveBtn').textContent   = 'Опубликовать';
+  document.getElementById('cancelBtn').style.display = 'none';
+}
+
+async function deleteNews(id, btn) {
+  if (!confirm('Удалить эту новость?')) return;
+  try {
+    await API.delete(`/news/${id}`);
+    UI.toast('Новость удалена');
+    await loadNews();
+  } catch(e) { UI.toast(e.message, 'error'); }
+}
+</script>
+</body>
+</html>

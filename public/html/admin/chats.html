@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Чаты жителей | Администратор</title>
+  <link rel="stylesheet" href="../../css/style.css"/>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><h1>ЖКХ Digital</h1><p>Панель администратора</p></div>
+    <nav class="nav">
+      <a href="dashboard.html">📊 Обзор</a>
+      <a href="requests.html">🛠 Заявки</a>
+      <a href="billing.html">🧾 Счета и начисления</a>
+      <a href="news.html">📢 Новости</a>
+      <a href="chats.html" class="active">💬 Чаты жителей</a>
+      <a href="users.html">👥 Пользователи</a>
+    </nav>
+    <div class="sidebar-footer">Загрузка...</div>
+  </aside>
+
+  <header class="topbar">
+    <h2>Чаты для жителей</h2>
+    <div class="top-actions">
+      <button class="icon-btn" id="notifyBtn">🔔<span class="badge" style="display:none">0</span></button>
+      <div class="profile"><div class="avatar">--</div><div><strong>Admin</strong><br/><span class="muted">Администратор</span></div></div>
+      <button class="icon-btn" data-logout title="Выйти">🚪</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="card">
+      <div class="section-title"><h3>Создать чат</h3></div>
+      <form id="createForm" class="form-stack" style="max-width:520px">
+        <input type="text" id="chatTitle" placeholder="Название чата" maxlength="120" required />
+        <input type="text" id="chatDesc" placeholder="Описание (необязательно)" maxlength="500" />
+        <button type="submit" class="btn" id="createBtn">Создать</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="section-title"><h3>Активные чаты</h3></div>
+      <div id="chatList" class="muted">Загрузка...</div>
+    </div>
+    <div class="footer">© 2026 ЖКХ Digital</div>
+  </main>
+</div>
+
+<script src="../../js/api.js"></script>
+<script>
+if (!API.requireRole('admin')) throw new Error('stop');
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('createForm').addEventListener('submit', createChat);
+  await loadList();
+});
+
+async function createChat(ev) {
+  ev.preventDefault();
+  const btn = document.getElementById('createBtn');
+  UI.setLoading(btn, true);
+  try {
+    const title = document.getElementById('chatTitle').value.trim();
+    const description = document.getElementById('chatDesc').value.trim();
+    await API.post('/admin/chats', { title, description });
+    UI.toast('Чат создан');
+    document.getElementById('createForm').reset();
+    await loadList();
+  } catch (e) { UI.toast(e.message, 'error'); }
+  finally { UI.setLoading(btn, false); }
+}
+
+async function loadList() {
+  try {
+    const rows = await API.get('/admin/chats');
+    document.getElementById('chatList').innerHTML = rows.length ? rows.map(c => `
+      <div class="chat-list-row">
+        <div>
+          <strong>${escapeHtml(c.title)}</strong>
+          <div class="muted" style="font-size:13px;margin-top:4px">${escapeHtml(c.description || '')}</div>
+        </div>
+        <a class="btn small" href="../chat-room.html?chat=${encodeURIComponent(c.id)}">Открыть</a>
+      </div>
+    `).join('') : '<p class="muted">Пока нет чатов</p>';
+  } catch (e) {
+    document.getElementById('chatList').textContent = e.message;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>
