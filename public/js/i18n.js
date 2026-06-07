@@ -1,6 +1,40 @@
 /* ─── Localization / i18n ───────────────────────────────────────────────────── */
 const translations = {
   ru: {
+     // Dashboard
+    nav_dashboard: 'Личный кабинет',
+    welcome: 'Добро пожаловать',
+    current_balance: 'Текущий баланс',
+
+    quick_summary: 'Краткая сводка',
+    to_pay: 'К оплате',
+    due_date: 'Срок оплаты',
+    active_requests: 'Активные заявки',
+    new_news: 'Новые новости',
+
+    submit_reading: 'Передать показания',
+    my_requests: 'Мои заявки',
+    pay_online: 'Оплатить онлайн',
+    nav_charges: 'Начисления',
+
+    latest_charges: 'Последние начисления',
+    period: 'Период',
+    service: 'Услуга',
+    amount: 'Сумма',
+    status: 'Статус',
+
+    news: 'Новости',
+    new: 'Новое',
+
+    unpaid: 'Не оплачено',
+    paid: 'Оплачено',
+    overdue: 'Просрочено',
+
+    apartment: 'Квартира',
+    profile: 'Профиль',
+    settings: 'Настройки',
+    notifications: 'Уведомления',
+    logout: 'Выйти',
     // Topbar home page
     navFeatures: 'Возможности',
     navHow: 'Как работает',
@@ -260,6 +294,40 @@ const translations = {
   },
 
   kz: {
+    // Dashboard
+    nav_dashboard: 'Жеке кабинет',
+    welcome: 'Қош келдіңіз',
+    current_balance: 'Ағымдағы баланс',
+
+    quick_summary: 'Қысқаша мәлімет',
+    to_pay: 'Төлеуге',
+    due_date: 'Төлеу мерзімі',
+    active_requests: 'Белсенді өтініштер',
+    new_news: 'Жаңа жаңалықтар',
+
+    submit_reading: 'Көрсеткіш енгізу',
+    my_requests: 'Менің өтініштерім',
+    pay_online: 'Онлайн төлеу',
+    nav_charges: 'Есептеулер',
+
+    latest_charges: 'Соңғы есептеулер',
+    period: 'Кезең',
+    service: 'Қызмет',
+    amount: 'Сома',
+    status: 'Күйі',
+
+    news: 'Жаңалықтар',
+    new: 'Жаңа',
+
+    unpaid: 'Төленбеген',
+    paid: 'Төленген',
+    overdue: 'Мерзімі өткен',
+
+    apartment: 'Пәтер',
+    profile: 'Профиль',
+    settings: 'Баптаулар',
+    notifications: 'Хабарламалар',
+    logout: 'Шығу',
     // Topbar home page
     navFeatures: 'Мүмкіндіктер',
     navHow: 'Қалай жұмыс істейді',
@@ -521,6 +589,40 @@ const translations = {
   },
 
   en: {
+    // Dashboard
+    nav_dashboard: 'Dashboard',
+    welcome: 'Welcome',
+    current_balance: 'Current Balance',
+
+    quick_summary: 'Quick Summary',
+    to_pay: 'To Pay',
+    due_date: 'Due Date',
+    active_requests: 'Active Requests',
+    new_news: 'New News',
+
+    submit_reading: 'Submit Reading',
+    my_requests: 'My Requests',
+    pay_online: 'Pay Online',
+    nav_charges: 'Charges',
+
+    latest_charges: 'Latest Charges',
+    period: 'Period',
+    service: 'Service',
+    amount: 'Amount',
+    status: 'Status',
+
+    news: 'News',
+    new: 'New',
+
+    unpaid: 'Unpaid',
+    paid: 'Paid',
+    overdue: 'Overdue',
+
+    apartment: 'Apartment',
+    profile: 'Profile',
+    settings: 'Settings',
+    notifications: 'Notifications',
+    logout: 'Logout',
     // Topbar home page
     navFeatures: 'Features',
     navHow: 'How It Works',
